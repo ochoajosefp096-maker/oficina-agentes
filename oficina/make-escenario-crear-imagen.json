@@ -1,0 +1,562 @@
+{
+  "name": "Crear imagen APIMart",
+  "flow": [
+    {
+      "id": 1,
+      "module": "scenario-service:StartSubscenario",
+      "version": 2,
+      "parameters": {},
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0
+        },
+        "interface": [
+          {
+            "name": "prompt",
+            "type": "text",
+            "label": "",
+            "help": "",
+            "default": "",
+            "required": true,
+            "multiline": true
+          },
+          {
+            "name": "nombre",
+            "type": "text",
+            "label": "",
+            "help": "",
+            "default": "",
+            "required": false,
+            "multiline": false
+          },
+          {
+            "name": "referencia_id",
+            "type": "text",
+            "label": "",
+            "help": "ID en Google Drive de la imagen de referencia del protagonista (opcional)",
+            "default": "",
+            "required": false,
+            "multiline": false
+          },
+          {
+            "name": "formato",
+            "type": "text",
+            "label": "",
+            "help": "Proporcion de la imagen, por ejemplo 1:1, 16:9 o 9:16 (opcional)",
+            "default": "",
+            "required": false,
+            "multiline": false
+          }
+        ]
+      }
+    },
+    {
+      "id": 30,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0
+        }
+      },
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 2,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {
+                "tlsType": "",
+                "authenticationType": "noAuth"
+              },
+              "mapper": {
+                "url": "https://api.apimart.ai/v1/images/generations",
+                "method": "post",
+                "headers": [
+                  {
+                    "name": "Authorization",
+                    "value": "Bearer TU_CLAVE_APIMART"
+                  },
+                  {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "timeout": "40",
+                "shareCookies": false,
+                "parseResponse": true,
+                "allowRedirects": true,
+                "stopOnHttpError": true,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{\"model\": \"gpt-image-2-ext\", \"prompt\": \"{{1.prompt}}\", \"size\": \"{{ifempty(1.formato; \"1:1\")}}\", \"resolution\": \"1K\", \"n\": 1}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 600,
+                  "y": -150
+                }
+              },
+              "filter": {
+                "name": "Sin referencia",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{1.referencia_id}}",
+                      "o": "notexist"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 3,
+              "module": "util:FunctionSleep",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "duration": "50"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 900,
+                  "y": -150
+                }
+              }
+            },
+            {
+              "id": 4,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {
+                "tlsType": "",
+                "authenticationType": "noAuth"
+              },
+              "mapper": {
+                "url": "https://api.apimart.ai/v1/tasks/{{get(get(2.data.data; 1); \"task_id\")}}",
+                "method": "get",
+                "headers": [
+                  {
+                    "name": "Authorization",
+                    "value": "Bearer TU_CLAVE_APIMART"
+                  }
+                ],
+                "timeout": "40",
+                "shareCookies": false,
+                "parseResponse": true,
+                "allowRedirects": true,
+                "stopOnHttpError": true,
+                "requestCompressedContent": true
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1200,
+                  "y": -150
+                }
+              }
+            },
+            {
+              "id": 5,
+              "module": "util:FunctionSleep",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "duration": "{{if(4.data.data.status = \"completed\"; 1; 100)}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1500,
+                  "y": -150
+                }
+              }
+            },
+            {
+              "id": 7,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {
+                "tlsType": "",
+                "authenticationType": "noAuth"
+              },
+              "mapper": {
+                "url": "https://api.apimart.ai/v1/tasks/{{get(get(2.data.data; 1); \"task_id\")}}",
+                "method": "get",
+                "headers": [
+                  {
+                    "name": "Authorization",
+                    "value": "Bearer TU_CLAVE_APIMART"
+                  }
+                ],
+                "timeout": "40",
+                "shareCookies": false,
+                "parseResponse": true,
+                "allowRedirects": true,
+                "stopOnHttpError": true,
+                "requestCompressedContent": true
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1800,
+                  "y": -150
+                }
+              }
+            },
+            {
+              "id": 6,
+              "module": "http:DownloadFile",
+              "version": 4,
+              "parameters": {
+                "authenticationType": "noAuth"
+              },
+              "mapper": {
+                "url": "{{first(flatten(map(7.data.data.result.images; \"url\")))}}",
+                "shareCookies": false,
+                "stopOnHttpError": true
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": -150
+                }
+              }
+            },
+            {
+              "id": 9,
+              "module": "google-drive:uploadAFile",
+              "version": 4,
+              "parameters": {
+                "__IMTCONN__": null
+              },
+              "mapper": {
+                "data": "{{6.data}}",
+                "select": "map",
+                "convert": false,
+                "filename": "{{ifempty(1.nombre; \"imagen\")}}.png",
+                "folderId": "root"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": -150
+                }
+              }
+            },
+            {
+              "id": 11,
+              "module": "scenario-service:ReturnData",
+              "version": 2,
+              "parameters": {},
+              "mapper": {
+                "link": "{{9.webViewLink}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": -150
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 20,
+              "module": "google-drive:getAFile",
+              "version": 4,
+              "parameters": {
+                "__IMTCONN__": null
+              },
+              "mapper": {
+                "file": "{{1.referencia_id}}",
+                "select": "map",
+                "formatDrawings": "image/png",
+                "formatDocuments": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "formatSpreadsheets": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "formatPresentations": "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 600,
+                  "y": 150
+                }
+              },
+              "filter": {
+                "name": "Con referencia",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{1.referencia_id}}",
+                      "o": "exist"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 21,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {
+                "tlsType": "",
+                "authenticationType": "noAuth"
+              },
+              "mapper": {
+                "url": "https://api.apimart.ai/v1/images/generations",
+                "method": "post",
+                "headers": [
+                  {
+                    "name": "Authorization",
+                    "value": "Bearer TU_CLAVE_APIMART"
+                  },
+                  {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "timeout": "60",
+                "shareCookies": false,
+                "parseResponse": true,
+                "allowRedirects": true,
+                "stopOnHttpError": true,
+                "requestCompressedContent": true,
+                "contentType": "json",
+                "inputMethod": "jsonString",
+                "jsonStringBodyContent": "{\"model\": \"gpt-image-2-ext\", \"prompt\": \"{{1.prompt}}\", \"size\": \"{{ifempty(1.formato; \"1:1\")}}\", \"resolution\": \"1K\", \"n\": 1, \"image_urls\": [\"data:image/jpeg;base64,{{toString(20.data; \"base64\")}}\"]}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 900,
+                  "y": 150
+                }
+              }
+            },
+            {
+              "id": 22,
+              "module": "util:FunctionSleep",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "duration": "80"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1200,
+                  "y": 150
+                }
+              }
+            },
+            {
+              "id": 23,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {
+                "tlsType": "",
+                "authenticationType": "noAuth"
+              },
+              "mapper": {
+                "url": "https://api.apimart.ai/v1/tasks/{{get(get(21.data.data; 1); \"task_id\")}}",
+                "method": "get",
+                "headers": [
+                  {
+                    "name": "Authorization",
+                    "value": "Bearer TU_CLAVE_APIMART"
+                  }
+                ],
+                "timeout": "40",
+                "shareCookies": false,
+                "parseResponse": true,
+                "allowRedirects": true,
+                "stopOnHttpError": true,
+                "requestCompressedContent": true
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1500,
+                  "y": 150
+                }
+              }
+            },
+            {
+              "id": 27,
+              "module": "util:FunctionSleep",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "duration": "{{if(23.data.data.status = \"completed\"; 1; 100)}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1800,
+                  "y": 150
+                }
+              }
+            },
+            {
+              "id": 28,
+              "module": "http:MakeRequest",
+              "version": 4,
+              "parameters": {
+                "tlsType": "",
+                "authenticationType": "noAuth"
+              },
+              "mapper": {
+                "url": "https://api.apimart.ai/v1/tasks/{{get(get(21.data.data; 1); \"task_id\")}}",
+                "method": "get",
+                "headers": [
+                  {
+                    "name": "Authorization",
+                    "value": "Bearer TU_CLAVE_APIMART"
+                  }
+                ],
+                "timeout": "40",
+                "shareCookies": false,
+                "parseResponse": true,
+                "allowRedirects": true,
+                "stopOnHttpError": true,
+                "requestCompressedContent": true
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2100,
+                  "y": 150
+                }
+              }
+            },
+            {
+              "id": 24,
+              "module": "http:DownloadFile",
+              "version": 4,
+              "parameters": {
+                "authenticationType": "noAuth"
+              },
+              "mapper": {
+                "url": "{{first(flatten(map(28.data.data.result.images; \"url\")))}}",
+                "shareCookies": false,
+                "stopOnHttpError": true
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 150
+                }
+              }
+            },
+            {
+              "id": 25,
+              "module": "google-drive:uploadAFile",
+              "version": 4,
+              "parameters": {
+                "__IMTCONN__": null
+              },
+              "mapper": {
+                "data": "{{24.data}}",
+                "select": "map",
+                "convert": false,
+                "filename": "{{ifempty(1.nombre; \"imagen\")}}.png",
+                "folderId": "root"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2700,
+                  "y": 150
+                }
+              }
+            },
+            {
+              "id": 26,
+              "module": "scenario-service:ReturnData",
+              "version": 2,
+              "parameters": {},
+              "mapper": {
+                "link": "{{25.webViewLink}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 3000,
+                  "y": 150
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "designer": {
+      "orphans": []
+    },
+    "scenario": {
+      "dlq": false,
+      "slots": null,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  },
+  "interface": {
+    "input": [
+      {
+        "name": "prompt",
+        "type": "text",
+        "label": "",
+        "help": "",
+        "default": "",
+        "required": true,
+        "multiline": true
+      },
+      {
+        "name": "nombre",
+        "type": "text",
+        "label": "",
+        "help": "",
+        "default": "",
+        "required": false,
+        "multiline": false
+      },
+      {
+        "name": "referencia_id",
+        "type": "text",
+        "label": "",
+        "help": "ID en Google Drive de la imagen de referencia del protagonista (opcional)",
+        "default": "",
+        "required": false,
+        "multiline": false
+      },
+      {
+        "name": "formato",
+        "type": "text",
+        "label": "",
+        "help": "Proporcion de la imagen, por ejemplo 1:1, 16:9 o 9:16 (opcional)",
+        "default": "",
+        "required": false,
+        "multiline": false
+      }
+    ],
+    "output": [
+      {
+        "name": "link",
+        "type": "text",
+        "label": "",
+        "help": "Enlace de la imagen en Google Drive",
+        "default": "",
+        "required": false,
+        "multiline": false
+      }
+    ]
+  }
+}
