@@ -789,6 +789,7 @@ async function ejecutar(t){
     try{ r = esInvestigador(t.dept, t.agente) ? await investigar(t, opts) : await sample(prompt(t), opts); }
     catch(e1){ if(fotos && e1 && (e1.code==="images_unavailable" || e1.code==="image_rejected")){ delete opts.images; r = await sample(prompt(t), opts); } else throw e1; }
     t.resultado = r.text; t.estado = "lista"; t.terminada = Date.now();
+    if(!t.apodo) await ponerApodo(t);
     const generaImg = imgCfg().auto && (esCreador(t) || esPrompts(t));
     let sig = null;
     if(Array.isArray(t.siguientes) && t.siguientes.length){
@@ -832,11 +833,22 @@ function versionTexto(t){
   }
   return `LOTE: esta es la versión ${k} de ${n} de la misma tarea. Haz que sea claramente distinta de las demás versiones: otro ángulo, otro enfoque y otros ejemplos.\n\n`;
 }
+const fechaCorta = ms => { const d = new Date(ms || Date.now()); return `${pad(d.getDate())}-${pad(d.getMonth()+1)}-${String(d.getFullYear()).slice(-2)}`; };
+const limpiarApodo = s => String(s || "").replace(/[^\p{L}\p{N} ]+/gu, " ").replace(/\s+/g, " ").trim().slice(0, 40);
+async function ponerApodo(t){
+  t.apodoFecha = t.apodoFecha || t.terminada || Date.now();
+  let n = "";
+  try{
+    const r = await sample.json(`Inventa un nombre corto y fácil de recordar (2 a 4 palabras, en español) para identificar este trabajo en las carpetas de Google Drive. Debe evocar al protagonista, la historia o el producto, como un título de película: por ejemplo "Noches de guacamaya" o "Los recuerdos de la joyería". Sin comillas, sin emojis, sin fechas y sin la palabra reel. Devuelve SOLO un objeto JSON: {"nombre": "..."}\n\nTarea: ${t.texto}\n\nResultado:\n${String(t.resultado || "").slice(0, 3000)}`, { modelTier:"quick", cache:false });
+    n = limpiarApodo(r && r.nombre);
+  }catch(e){}
+  t.apodo = n || limpiarApodo(t.texto.split(/\s+/).slice(0, 5).join(" ")) || "Sin nombre";
+}
 function encadenar(t, ref){
   if(!Array.isArray(t.siguientes) || !t.siguientes.length) return null;
   const [p, ...resto] = t.siguientes;
   const referencia = ref || t.referencia || null;
-  const sig = nuevaTarea(p.texto + (t.version && t.version.n>1 ? ` (${t.version.k}/${t.version.n})` : ""), p.dept, p.agente, { siguientes: resto, rutinaId: t.rutinaId, entrada: t.resultado, origen: {dept:t.dept, agente:t.agente, id:t.id}, paso: (t.paso||1)+1, referencia, version: t.version, producto: t.producto, calId: t.calId });
+  const sig = nuevaTarea(p.texto + (t.version && t.version.n>1 ? ` (${t.version.k}/${t.version.n})` : ""), p.dept, p.agente, { siguientes: resto, rutinaId: t.rutinaId, entrada: t.resultado, origen: {dept:t.dept, agente:t.agente, id:t.id}, paso: (t.paso||1)+1, referencia, version: t.version, producto: t.producto, calId: t.calId, apodo: t.apodo, apodoFecha: t.apodoFecha });
   t.pasoA = { dept: sig.dept, agente: sig.agente, id: sig.id };
   t.esperandoHoja = false;
   lanzarOrbeEntre(t.dept, sig.dept);
@@ -989,8 +1001,7 @@ async function _guardarDrive(t){
   if(!mcp){ t.drive = { estado:"error", error:"Google Drive solo funciona cuando abres la oficina dentro de Claude." }; save(); renderAll(); return; }
   const d = deptById(t.dept), a = d.agentes[t.agente];
   const fecha = new Date(t.terminada || Date.now());
-  const f = `${fecha.getFullYear()}-${pad(fecha.getMonth()+1)}-${pad(fecha.getDate())} ${pad(fecha.getHours())}.${pad(fecha.getMinutes())}`;
-  const titulo = `${f} ${t.texto.replace(/\s+/g," ").slice(0,70)}`;
+  const titulo = t.apodo ? `${fechaCorta(t.apodoFecha || t.terminada)} ${t.apodo} - ${a.rol}` : `${fechaCorta(t.terminada)} ${t.texto.replace(/\s+/g," ").slice(0,70)}`;
   const html = `<html><body><h1>${esc(t.texto)}</h1><p><b>Agente:</b> ${esc(a.rol)} (${esc(d.nombre)})<br><b>Fecha:</b> ${esc(fecha.toLocaleString("es"))}${t.origen ? `<br><b>Recibió el trabajo de:</b> ${esc(origenTxt(t))}` : ""}${t.rutinaId ? "<br><b>Tipo:</b> rutina" : ""}</p><hr>${md(t.resultado || "")}</body></html>`;
   try{
     let intento = 0;
@@ -1079,7 +1090,7 @@ async function _crearImagenes(t){
       }catch(e){ throw { message: e && e.code==="not_granted" ? "No diste permiso para usar Claude." : "No pude leer los prompts del resultado." }; }
       lista = (Array.isArray(lista) ? lista : []).map(limpiarPrompt).filter(x=>x.length>8).slice(0, esCreador(t) ? 1 : imgCfg().max);
       if(!lista.length){ im.estado = "error"; im.error = "No encontré prompts de imágenes en este resultado."; save(); renderAll(); return; }
-      im.items = lista.map((prompt,i)=>({ n:i+1, prompt, nombre:`img-${t.id}-${i+1}`, estado:"pendiente" }));
+      im.items = lista.map((prompt,i)=>({ n:i+1, prompt, nombre: t.apodo ? `${fechaCorta(t.apodoFecha || t.terminada)} ${t.apodo} - ${esCreador(t) ? "hoja del protagonista" : "imagen " + (i+1)} (${t.id.slice(-4)})` : `img-${t.id}-${i+1}`, estado:"pendiente" }));
       save();
     }
     im.estado = "generando"; renderAll();
@@ -1438,7 +1449,7 @@ const copyTarea = e => store.tareas.filter(x=>x.calOpc===e.id && x.dept==="marke
 const guionLista = e => store.tareas.filter(x=>x.calId===e.id && esGuionista(x.dept, x.agente) && x.estado==="lista").sort((a,b)=>b.creada-a.creada)[0];
 function lanzarCopy(e, guion){
   const brief = briefDeEntrada(e); Object.keys(brief).forEach(k=>{ if(!brief[k]) delete brief[k]; });
-  return nuevaTarea(`Copy de anuncio para Meta: ${e.curso}${e.angulo ? " — "+e.angulo : ""}`, "marketing", 2, { entrada: guion.resultado, origen: { dept: guion.dept, agente: guion.agente, id: guion.id }, producto: e.producto ? { ...e.producto } : undefined, brief, calOpc: e.id });
+  return nuevaTarea(`Copy de anuncio para Meta: ${e.curso}${e.angulo ? " — "+e.angulo : ""}`, "marketing", 2, { entrada: guion.resultado, origen: { dept: guion.dept, agente: guion.agente, id: guion.id }, producto: e.producto ? { ...e.producto } : undefined, brief, calOpc: e.id, apodo: guion.apodo, apodoFecha: guion.apodoFecha });
 }
 const CADENA_DEF = [
   { dept:"audiovisual", agente:0, texto:"Lee el guion, define al protagonista y crea la hoja de referencia de 6 vistas. Entrega la ficha del protagonista, el prompt de la hoja y las escenas del guion con la VOZ textual de cada una." },
@@ -1690,7 +1701,7 @@ function renderList(){
     const d = deptById(t.dept), a = d.agentes[t.agente];
     return `<button class="task" data-t="${t.id}" style="--c:var(${d.color})">
       <div class="t">${esc(t.texto)}</div>
-      <div class="m">${esc(a.rol)}, ${esc(d.corto)}${t.rutinaId ? ". Rutina" : ""}${t.esperandoHoja ? ". Esperando la hoja del protagonista" : ""}${t.inv && t.estado==="trabajando" && t.inv.prog ? ". " + esc(t.inv.prog.rep || t.inv.prog.ads || t.inv.prog.per || t.inv.prog.plan || "") : ""}${t.referencia ? ". Con referencia" : ""}${t.origen ? `. Recibió de ${esc(deptById(t.origen.dept).agentes[t.origen.agente].rol)}` : ""}${t.siguientes && t.siguientes.length && t.estado!=="lista" ? `. Luego pasa a ${esc(rolDe(t.siguientes[0].dept, t.siguientes[0].agente))}` : ""}${t.drive && t.drive.estado==="guardado" ? ". Guardada en Drive" : t.drive && t.drive.estado==="error" ? ". No se guardó en Drive" : ""}${t.imagenes ? (t.imagenes.estado==="generando"||t.imagenes.estado==="pendiente" ? ". Creando imágenes" : t.imagenes.estado==="listo" ? `. ${t.imagenes.items.length} imágenes` : t.imagenes.estado==="parcial" ? ". Imágenes incompletas" : "") : ""}</div>
+      <div class="m">${t.apodo ? `«${esc(t.apodo)}» · ` : ""}${esc(a.rol)}, ${esc(d.corto)}${t.rutinaId ? ". Rutina" : ""}${t.esperandoHoja ? ". Esperando la hoja del protagonista" : ""}${t.inv && t.estado==="trabajando" && t.inv.prog ? ". " + esc(t.inv.prog.rep || t.inv.prog.ads || t.inv.prog.per || t.inv.prog.plan || "") : ""}${t.referencia ? ". Con referencia" : ""}${t.origen ? `. Recibió de ${esc(deptById(t.origen.dept).agentes[t.origen.agente].rol)}` : ""}${t.siguientes && t.siguientes.length && t.estado!=="lista" ? `. Luego pasa a ${esc(rolDe(t.siguientes[0].dept, t.siguientes[0].agente))}` : ""}${t.drive && t.drive.estado==="guardado" ? ". Guardada en Drive" : t.drive && t.drive.estado==="error" ? ". No se guardó en Drive" : ""}${t.imagenes ? (t.imagenes.estado==="generando"||t.imagenes.estado==="pendiente" ? ". Creando imágenes" : t.imagenes.estado==="listo" ? `. ${t.imagenes.items.length} imágenes` : t.imagenes.estado==="parcial" ? ". Imágenes incompletas" : "") : ""}</div>
       <span class="pill ${t.estado}">${ESTADOS[t.estado]}</span>
       ${t.estado==="trabajando"||t.estado==="cola" ? `<div class="bar"><i style="${t.estado==="cola"?"animation:none;width:0":""}"></i></div>` : ""}
     </button>`;
@@ -1890,7 +1901,7 @@ function pintarDetalle(){
   const d = deptById(t.dept), a = d.agentes[t.agente];
   $("dBox").style.setProperty("--c", `var(${d.color})`);
   $("dTitle").textContent = t.texto;
-  $("dWho").textContent = `${a.rol}, ${d.nombre}. ${ESTADOS[t.estado]}`;
+  $("dWho").textContent = `${t.apodo ? `«${t.apodo}» · ` : ""}${a.rol}, ${d.nombre}. ${ESTADOS[t.estado]}`;
   let body = "";
   const links = [];
   if(t.origen && store.tareas.some(x=>x.id===t.origen.id)) links.push(`<button data-go="${t.origen.id}">Ver lo que recibió de ${esc(deptById(t.origen.dept).agentes[t.origen.agente].rol)}</button>`);
