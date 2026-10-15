@@ -107,3 +107,33 @@ Costo aproximado: 1 a 1,20 USD de Apify y 50 a 80 operaciones de Make por invest
 2. **Validar** (para 8 a 10 candidatos): anuncios activos de cada candidato, total de anuncios de los anunciantes más fuertes, sus páginas de venta (precio y oferta), una búsqueda de Google por candidato, y videos de TikTok (`clockworks~tiktok-scraper`) y YouTube (`streamers~youtube-scraper`).
 
 Costo aproximado: 1,80 a 2,50 USD de Apify y 120 a 180 operaciones de Make por investigación.
+
+## Departamento de ventas
+
+En Ventas trabajan dos agentes. El Cerrador y el Seguimiento de leads están ocultos por ahora.
+
+### Seguimiento de ventas
+- Lee la hoja **Tabla de Utilidad Cursos**. **Solo la lee, nunca la modifica.** Toma las columnas Fecha, Curso, Venta e ID (la línea de WhatsApp).
+- Lee el gasto real de Meta Ads: Business Manager **Manualidades DC 1**, **Cuenta #1**. Trae el gasto por campaña y por día de los últimos 45 días, incluido hoy, y los chats iniciados.
+- Calcula, para hoy, ayer, los últimos 7 días, el mes y día por día:
+  - ventas, ingresos, publicidad, ROAS y costo por venta
+  - conversión de chat a venta
+  - ganancia después de los gastos operativos
+- Separa los resultados por curso y por línea de WhatsApp.
+- **Cómo se asignan las campañas:**
+  - A un curso: por su nombre. Nombra las campañas con el curso al inicio (por ejemplo "Joyería 1", "Joyería 2").
+  - A una línea de WhatsApp: cuando el nombre de la campaña la incluye (por ejemplo "312").
+- **Escenario de Make "Resumen de ventas (Oficina)"** (6647751):
+  - Corre cada 3 horas, de 9 de la mañana a 10 de la noche, hora de Colombia.
+  - Gasta unas 5 operaciones por corrida.
+  - Guarda todo en `ventas-resumen.txt`, dentro de la carpeta `_investigaciones` de Drive.
+  - Si el archivo tiene más de 40 minutos cuando pides un reporte, la oficina lo actualiza antes de calcular.
+- **Gastos operativos:** se editan en **Ajustes → Seguimiento de ventas**.
+  - Por defecto: OpenAI 100.000, servidor N8N 20.000, Claude 65.000, Make 9 USD y APIMart 20 USD.
+  - Con el dólar a 4.000, suman 301.000 pesos al mes.
+  - La oficina los reparte por día.
+
+### Copywriter de ventas
+- Escribe los textos de WhatsApp en este orden: inicio (título, qué es, beneficios y precio), las 2 fotos, el bono y la apertura (link, precio y "¿Tienes alguna duda o quieres que te envíe los métodos de pago?").
+- Usa el último reporte del Seguimiento de ventas para proponer mejoras de conversión.
+- Sus instrucciones se pueden editar en **Equipo**.

@@ -349,6 +349,13 @@ select{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:10px;padd
 .drive-set h4{font-family:var(--display);font-size:16px;margin:0 0 8px}
 .drive-set p{margin:6px 0 0;font-size:13.5px;color:var(--muted)}
 .drive-set a{color:var(--ink);font-weight:700}
+.gasto-row{display:flex;gap:6px;align-items:center;margin-top:6px}
+.gasto-row input,.gasto-row select{border:1.5px solid var(--line);border-radius:8px;padding:5px 7px;background:var(--panel-2);color:var(--ink);font:inherit;font-size:13.5px;min-width:0}
+.gasto-row input[data-g="nombre"]{flex:1}
+.gasto-row input[data-g="monto"]{width:96px;flex:none}
+.gasto-row select{flex:none}
+.gasto-row button{flex:none;border:0;background:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0 4px}
+.gasto-add{border:1.5px dashed var(--line);background:none;border-radius:8px;padding:4px 10px;color:var(--ink);font:inherit;font-size:13px;cursor:pointer}
 .sw{display:flex;gap:9px;align-items:center;font-weight:600;font-size:14px;cursor:pointer}
 .sw input{width:18px;height:18px;accent-color:var(--ok)}
 .chain a.drv{border:1px solid color-mix(in srgb,var(--ok) 45%,var(--line));background:color-mix(in srgb,var(--ok) 10%,transparent);border-radius:999px;padding:4px 11px;font-size:12.5px;font-weight:700;color:var(--ok);text-decoration:none}
@@ -589,6 +596,14 @@ select{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:10px;padd
       <p>Perplexity: <input type="text" id="invPer" inputmode="numeric" style="width:110px;border:1.5px solid var(--line);border-radius:8px;padding:4px 6px;background:var(--panel-2)"> Pedir anuncios: <input type="text" id="invPedir" inputmode="numeric" style="width:110px;border:1.5px solid var(--line);border-radius:8px;padding:4px 6px;background:var(--panel-2)"> Traer anuncios: <input type="text" id="invTraer" inputmode="numeric" style="width:110px;border:1.5px solid var(--line);border-radius:8px;padding:4px 6px;background:var(--panel-2)"></p>
     </div>
     <div class="drive-set">
+      <h4>Seguimiento de ventas</h4>
+      <p>Gastos operativos fijos del mes. El Seguimiento de ventas los reparte por día y los resta para decirte cuánto llevas de ganancia real.</p>
+      <div id="gastosList"></div>
+      <p><button type="button" class="gasto-add" id="gastoAdd">+ Agregar gasto</button> Dólar a <input type="text" id="ventasTasa" inputmode="numeric" style="width:90px;border:1.5px solid var(--line);border-radius:8px;padding:4px 6px;background:var(--panel-2)"> pesos</p>
+      <p id="gastosTot"></p>
+      <p>Escenario de Make "Resumen de ventas (Oficina)": <input type="text" id="ventasEsc" inputmode="numeric" style="width:110px;border:1.5px solid var(--line);border-radius:8px;padding:4px 6px;background:var(--panel-2)"> Lee tu hoja de ventas (sin modificarla) y el gasto de Meta cada 3 horas, de 9 de la mañana a 10 de la noche.</p>
+    </div>
+    <div class="drive-set">
       <h4>Importar configuración</h4>
       <p>Carga el archivo <b>configuracion-oficina.json</b> para traer los agentes con sus instrucciones, la descripción del negocio, las rutinas, el calendario, las fotos del producto y los ajustes. Reemplaza lo que tengas ahora.</p>
       <p><input type="file" id="impFile" accept=".json,application/json"> <span id="impMsg"></span></p>
@@ -608,12 +623,12 @@ select{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:10px;padd
 /* ---------- Datos de la oficina ---------- */
 const DEPTS = [
   { id:"ventas", nombre:"Ventas y clientes", corto:"Ventas", color:"--ventas", pos:[-7.5,-7.5],
-    ideas:["Escribe la página de ventas de mi curso","Respuestas a las 5 objeciones más comunes","Mensaje para leads que no compraron"],
+    ideas:["¿Cuánto llevo de ganancia este mes?","Reporte de ventas de hoy por curso y por línea","Textos de WhatsApp para mi curso con mejoras de conversión"],
     agentes:[
-      {rol:"Líder de ventas", desc:"estrategia comercial, oferta, precios, bonos y garantías", kw:["estrategia","oferta","precio","bono","garantia","plan"]},
-      {rol:"Copywriter de ventas", desc:"páginas de venta, landing pages y textos persuasivos", kw:["pagina","landing","copy","carta","texto de venta","vsl"]},
-      {rol:"Cerrador", desc:"manejo de objeciones y guiones de cierre por WhatsApp o llamada", kw:["objecion","cierre","cerrar","whatsapp","llamada","dm"]},
-      {rol:"Seguimiento de leads", desc:"recuperar carritos abandonados y hacer seguimiento a interesados", kw:["seguimiento","lead","carrito","recuperar","abandon","no compraron"]}
+      {rol:"Seguimiento de ventas", desc:"compara las ventas de la hoja Tabla de Utilidad Cursos con el gasto de Meta Ads y calcula la ganancia real después de los gastos operativos", kw:["ganancia","utilidad","roas","reporte","cuanto llevo","resultados","gasto","seguimiento","vendi","ventas de"]},
+      {rol:"Copywriter de ventas", desc:"textos de venta por WhatsApp (inicio, fotos, bono y apertura) y mejoras de conversión según el reporte del Seguimiento de ventas", kw:["whatsapp","copy","texto","inicio","bono","apertura","mensaje","conversion","mejora"]},
+      {oculto:true, rol:"Cerrador", desc:"manejo de objeciones y guiones de cierre por WhatsApp o llamada", kw:["objecion","cierre","cerrar","llamada","dm"]},
+      {oculto:true, rol:"Seguimiento de leads", desc:"recuperar carritos abandonados y hacer seguimiento a interesados", kw:["lead","carrito","recuperar","abandon","no compraron"]}
     ]},
   { id:"marketing", nombre:"Marketing y redes", corto:"Marketing", color:"--marketing", pos:[7.5,-7.5],
     ideas:["Busca 5 infoproductos ganadores para lanzar en Colombia","Copy de anuncio para Meta con estructura PSBA","3 variaciones de anuncio para probar un curso nuevo"],
@@ -662,7 +677,7 @@ function compactarTareas(){
   store.tareas.forEach((t,i)=>{ if(fin(t) && t.entrada && (!t.origen || store.tareas.some(x=>x.id===t.origen.id))) delete t.entrada; if(i>=25 && fin(t) && t.resultado && t.resultado.length>6200) t.resultado = t.resultado.slice(0,6000) + "\n\n… (el resultado completo quedó guardado en Google Drive)"; });
   while(store.tareas.length>70){ const i = store.tareas.map(fin).lastIndexOf(true); if(i<0) break; store.tareas.splice(i,1); }
 }
-function datosOficina(){ return { tareas: store.tareas.map(t=>({...t})), negocio: store.negocio, rutinas: store.rutinas.map(r=>({...r})), drive: driveCfg(), avisos: avisosCfg(), img: imgCfg(), equipo: store.equipo || {}, briefReel: store.briefReel || null, planUlt: store.planUlt || null, calCfg: calCfg(), invCfg: invCfg(), invUlt: store.invUlt || null, productos: store.productos || [] }; }
+function datosOficina(){ return { tareas: store.tareas.map(t=>({...t})), negocio: store.negocio, rutinas: store.rutinas.map(r=>({...r})), drive: driveCfg(), avisos: avisosCfg(), img: imgCfg(), equipo: store.equipo || {}, briefReel: store.briefReel || null, planUlt: store.planUlt || null, calCfg: calCfg(), invCfg: invCfg(), invUlt: store.invUlt || null, productos: store.productos || [], ventasCfg: ventasCfg(), ventasIni: !!store.ventasIni }; }
 async function saveCal(){
   if(savingCal){ pendingCal = true; return; }
   savingCal = true;
@@ -690,7 +705,7 @@ async function initStorage(){
       const snap = await docRef.get();
       const crudo = snap && snap.data && snap.data();
       const data = crudo ? JSON.parse(JSON.stringify(crudo)) : null;
-      if(data) store = { tareas: Array.isArray(data.tareas)?data.tareas:[], negocio: data.negocio||"", rutinas: Array.isArray(data.rutinas)?data.rutinas:[], drive: data.drive || { activo:true, carpetas:{} }, avisos: data.avisos || { sonido:true }, img: data.img || { auto:true, max:4 }, equipo: data.equipo || {}, briefReel: data.briefReel || null, planUlt: data.planUlt || null, calCfg: data.calCfg || null, invCfg: data.invCfg || {}, invUlt: data.invUlt || null, productos: Array.isArray(data.productos) ? data.productos : [] };
+      if(data) store = { tareas: Array.isArray(data.tareas)?data.tareas:[], negocio: data.negocio||"", rutinas: Array.isArray(data.rutinas)?data.rutinas:[], drive: data.drive || { activo:true, carpetas:{} }, avisos: data.avisos || { sonido:true }, img: data.img || { auto:true, max:4 }, equipo: data.equipo || {}, briefReel: data.briefReel || null, planUlt: data.planUlt || null, calCfg: data.calCfg || null, invCfg: data.invCfg || {}, invUlt: data.invUlt || null, productos: Array.isArray(data.productos) ? data.productos : [], ventasCfg: data.ventasCfg || null, ventasIni: !!data.ventasIni };
       try{ const cs = calRef ? await calRef.get() : null; const cd = cs && cs.data && cs.data(); store.calendario = cd && Array.isArray(cd.items) ? JSON.parse(JSON.stringify(cd.items)) : []; }catch(e){ store.calendario = []; }
     }else{
       const raw = localStorage.getItem("oficina-agentes");
@@ -704,8 +719,10 @@ async function initStorage(){
   store.calendario.forEach(e=>{ if(e.estado==="planeado") e.estado = "pendiente"; if(e.estado==="produccion" && !store.tareas.some(x=>x.calId===e.id && (x.estado==="cola"||x.estado==="trabajando"||x.estado==="pausada"||x.estado==="lista"))) e.estado = "aprobado"; });
   store.tareas.forEach(t=>{ if(t.estado==="trabajando"||t.estado==="cola"){ t.estado="pausada"; } if(t.drive && t.drive.estado==="guardando") t.drive = { estado:"error", error:"El guardado se interrumpió al cerrar la página." }; if(t.imagenes && (t.imagenes.estado==="generando" || t.imagenes.estado==="pendiente")) t.imagenes.estado = "pausado"; });
   driveCfg();
+  const nuevasVentas = !store.ventasIni; instrVentasIniciales();
   aplicarEquipo();
   cargado = true;
+  if(nuevasVentas) save();
   renderAll(); revisarRutinas();
 }
 async function save(){
@@ -739,8 +756,9 @@ function elegirAgente(dept, texto){
   dept.agentes.forEach((a,i)=>{ if(a.oculto) return; const s = a.kw.reduce((n,k)=>n+(t.includes(norm(k))?1:0),0); if(s>score){score=s;best=i;} });
   return best;
 }
-function prompt(t){
+function prompt(t, extra){
   const d = deptById(t.dept), a = d.agentes[t.agente];
+  if(esCopyVentas(t.dept, t.agente)) extra = (extra || "") + ultimoSeguimiento(t);
   return `Eres "${a.rol}", del departamento de ${d.nombre}, en un equipo de agentes que trabaja para un negocio de infoproductos (cursos digitales).
 Tu especialidad: ${a.desc}.${a.instr && a.instr.trim() ? `
 
@@ -755,7 +773,7 @@ ${entradaDe(t) ? `Trabajo que te pasó ${origenTxt(t)} (úsalo como base para tu
 ${String(entradaDe(t)).slice(0,14000)}
 >>>
 
-` : ""}${t.producto ? productoTexto(t) : ""}${t.referencia ? "Las imágenes de esta tarea se crearán usando como referencia la hoja de 6 vistas del protagonista, que ya está lista. En cada prompt pide una sola fotografía completa de esa misma persona, nunca una cuadrícula ni paneles.\n\n" : ""}${t.rutinaId ? memoriaRutina(t) : ""}${t.version && t.version.n>1 && (t.paso||1)===1 ? versionTexto(t) : ""}Tarea:
+` : ""}${t.producto ? productoTexto(t) : ""}${t.referencia ? "Las imágenes de esta tarea se crearán usando como referencia la hoja de 6 vistas del protagonista, que ya está lista. En cada prompt pide una sola fotografía completa de esa misma persona, nunca una cuadrícula ni paneles.\n\n" : ""}${t.rutinaId ? memoriaRutina(t) : ""}${t.version && t.version.n>1 && (t.paso||1)===1 ? versionTexto(t) : ""}${extra || ""}Tarea:
 ${t.texto}${t.brief ? "\n\nFICHA DEL REEL (datos del dueño; síguelos al pie de la letra, tienen prioridad sobre tus valores por defecto):\n" + briefTexto(t.brief) : ""}${t.plan ? planTexto(t) : ""}
 
 Entrega directamente el resultado final, listo para usar, en español latinoamericano natural. Usa markdown sencillo (títulos cortos, listas, negritas) solo cuando ayude a leerlo. No expliques lo que vas a hacer: hazlo. Si es un guion de video, incluye indicaciones de escena o tiempos.${t.dept==="audiovisual" && t.agente===3 ? " Si entregas prompts para generar imágenes, numéralos y escribe cada prompt completo en un solo párrafo, con sujeto, estilo, luz, encuadre y ambiente, listo para pegar en un generador de imágenes." : ""} Termina con una línea "Siguiente paso:" con una sugerencia breve.`;
@@ -824,7 +842,7 @@ async function ejecutar(t){
       onText:({text})=>{ t.resultado = text; if(abierta===t.id) pintarDetalle(); } };
     if(fotos) opts.images = fotos;
     let r;
-    try{ r = esInvestigador(t.dept, t.agente) ? await investigar(t, opts) : await sample(prompt(t), opts); }
+    try{ r = esInvestigador(t.dept, t.agente) ? await investigar(t, opts) : esSeguimiento(t.dept, t.agente) ? await seguimientoVentas(t, opts) : await sample(prompt(t), opts); }
     catch(e1){ if(fotos && e1 && (e1.code==="images_unavailable" || e1.code==="image_rejected")){ delete opts.images; r = await sample(prompt(t), opts); } else throw e1; }
     t.resultado = r.text; t.estado = "lista"; t.terminada = Date.now();
     if(!t.apodo) await ponerApodo(t);
@@ -848,7 +866,7 @@ async function ejecutar(t){
       not_granted:"No diste permiso para que los agentes usen Claude. Recarga la página y acepta el permiso para asignar tareas.",
       rate_limited:"Hay demasiadas tareas a la vez. Espera un minuto y pulsa Rehacer.",
       aborted:"Detuviste esta tarea."
-    }[e && e.code] || "La tarea no se pudo completar. Pulsa Rehacer para intentarlo otra vez.";
+    }[e && e.code] || (e && !e.code && e.message) || "La tarea no se pudo completar. Pulsa Rehacer para intentarlo otra vez.";
     t.error = msg;
     if(e && e.text) t.resultado = e.text;
     if(e && e.code==="not_granted"){ sample = null; updateLive(); updateComposer(); }
@@ -908,7 +926,7 @@ const ORIG = DEPTS.map(d=>d.agentes.map(a=>({ rol:a.rol, desc:a.desc })));
 const EJEMPLOS = {
   "audiovisual/3": "Ejemplo: Entrega siempre 4 prompts en inglés. Estilo fotografía publicitaria realista, formato vertical para Instagram, colores cálidos de mi marca (naranja y azul oscuro). Nunca pongas texto dentro de la imagen. Cada prompt debe mostrar a una persona latina usando el computador.",
   "audiovisual/1": "Ejemplo: Escribe guiones de máximo 30 segundos. Empieza siempre con un hook en los primeros 3 segundos, usa un tono cercano y directo, y termina con un llamado a la acción para escribir CURSO en los comentarios.",
-  "ventas/1": "Ejemplo: Usa la estructura problema, agitación y solución. Habla de tú, con frases cortas. Menciona siempre la garantía de 7 días y que el acceso es de por vida."
+  "ventas/1": "Ejemplo: Habla de tú, con frases cortas y emojis moderados. El texto de apertura siempre termina con: ¿tienes alguna duda o quieres que te envíe los métodos de pago?"
 };
 let eqSel = "ventas/0", eqDraft = {};
 function aplicarEquipo(){
@@ -1205,6 +1223,209 @@ function avisoImagenes(t, ok, total){
   el.querySelector(".tx").onclick = ()=>el.remove();
   const cont = $("toasts"); cont.appendChild(el); while(cont.children.length>3) cont.firstElementChild.remove();
   setTimeout(()=>el.remove(), 9000);
+}
+
+/* ---------- Seguimiento de ventas (gasto de Meta y hoja de ventas vía Make) ---------- */
+const VENTAS_DEF = { escenario: 6647751, archivo: "1GTYR0thoo8PQEq1TrF-NOeI7V1Lhvz91", tasa: 4000,
+  gastos: [ { nombre:"OpenAI (respuestas de N8N)", monto:100000, moneda:"COP" }, { nombre:"Servidor de N8N", monto:20000, moneda:"COP" }, { nombre:"Claude", monto:65000, moneda:"COP" }, { nombre:"Make", monto:9, moneda:"USD" }, { nombre:"APIMart (imágenes)", monto:20, moneda:"USD" } ] };
+function ventasCfg(){
+  if(!store.ventasCfg) store.ventasCfg = JSON.parse(JSON.stringify(VENTAS_DEF));
+  const c = store.ventasCfg;
+  if(!Array.isArray(c.gastos)) c.gastos = [];
+  ["tasa","escenario","archivo"].forEach(k=>{ if(!c[k]) c[k] = VENTAS_DEF[k]; });
+  return c;
+}
+const esSeguimiento = (dept, ag) => dept==="ventas" && String(ag)==="0";
+const esCopyVentas = (dept, ag) => dept==="ventas" && String(ag)==="1";
+const gastoCop = (g, tasa) => (Number(g.monto)||0) * (g.moneda==="USD" ? (Number(tasa)||VENTAS_DEF.tasa) : 1);
+const gastosMes = (c = ventasCfg()) => c.gastos.reduce((s,g)=>s + gastoCop(g, c.tasa), 0);
+const pesos = n => (n<0 ? "-$" : "$") + Math.round(Math.abs(n)).toLocaleString("es-CO");
+const hoyBog = () => new Date().toLocaleDateString("en-CA", { timeZone:"America/Bogota" });
+const diaMenos = (iso, n) => { const d = new Date(iso+"T12:00:00Z"); d.setUTCDate(d.getUTCDate()-n); return d.toISOString().slice(0,10); };
+function aNumero(s){
+  let v = String(s ?? "").replace(/[^\d,.-]/g,"");
+  if(/^-?\d{1,3}([.,]\d{3})+$/.test(v)) v = v.replace(/[.,]/g,""); else v = v.replace(",", ".");
+  const n = Number(v); return isFinite(n) ? n : 0;
+}
+function fechaHoja(s){
+  s = String(s||"").trim();
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); if(m) return `${m[1]}-${m[2].padStart(2,"0")}-${m[3].padStart(2,"0")}`;
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if(m) return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+  return null;
+}
+function parsearVentas(txt){
+  const meta = [], ventas = [];
+  const iM = txt.indexOf("===META==="), iH = txt.indexOf("===HOJA===");
+  if(iM>=0) txt.slice(iM+10, iH>iM ? iH : undefined).split("\n").forEach(l=>{
+    const p = l.split("|"); if(p.length<4) return;
+    const fecha = p[0].trim().slice(0,10); if(!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return;
+    meta.push({ fecha, campana: p.slice(1,-2).join("|").trim(), gasto: Number(p[p.length-2])||0, chats: Number(p[p.length-1])||0 });
+  });
+  let hoja = null; try{ hoja = iH>=0 ? JSON.parse(txt.slice(iH+10).trim()) : null; }catch(e){}
+  ((hoja && hoja.sheets) || []).forEach(s=>{
+    const filas = (s.data && s.data[0] && s.data[0].rowData) || [];
+    const val = r => ((r && r.values) || []).map(v=>v.formattedValue ?? "");
+    const cab = filas.length ? val(filas[0]).map(h=>norm(String(h)).trim()) : [];
+    const col = k => cab.findIndex(h=>h.startsWith(k));
+    const iF = col("fecha"), iC = col("curso"), iV = col("venta"), iI = cab.findIndex(h=>h==="id"||h==="linea");
+    if(iF<0 || iC<0 || iV<0) return;
+    filas.slice(1).forEach(r=>{
+      const v = val(r), fecha = fechaHoja(v[iF]), monto = aNumero(v[iV]);
+      if(!fecha || !monto) return;
+      ventas.push({ fecha, curso: String(v[iC]||"").trim() || "Sin curso", monto, linea: iI>=0 ? String(v[iI]||"").trim() : "" });
+    });
+  });
+  return { meta, ventas };
+}
+function cursoDeCampana(nombre, cursos){
+  const n = norm(nombre);
+  const dentro = cursos.filter(c=>n.includes(norm(c))).sort((a,b)=>b.length-a.length)[0];
+  if(dentro) return dentro;
+  const base = norm(nombre.split(" - ")[0]).replace(/\s*\d+\s*$/,"").trim();
+  const pref = base && cursos.find(c=>norm(c).startsWith(base) || base.startsWith(norm(c)));
+  return pref || nombre.split(" - ")[0].replace(/\s*\d+\s*$/,"").trim() || "Sin curso";
+}
+const lineaDeCampana = nombre => { const m = String(nombre).match(/(?:^|\D)(3\d{2})(?:\D|$)/); return m ? m[1] : ""; };
+function agruparVentas(datos, desde, hasta, cursos){
+  const r = { gasto:0, chats:0, n:0, ingresos:0, cursos:{}, lineas:{}, campanas:{} };
+  const canon = c => cursos.find(x=>norm(x)===norm(c)) || c;
+  const C = k => r.cursos[k] = r.cursos[k] || { gasto:0, chats:0, n:0, ingresos:0 };
+  const L = k => r.lineas[k] = r.lineas[k] || { gasto:0, chats:0, n:0, ingresos:0 };
+  datos.meta.forEach(m=>{
+    if(m.fecha<desde || m.fecha>hasta) return;
+    r.gasto += m.gasto; r.chats += m.chats;
+    const c = C(canon(cursoDeCampana(m.campana, cursos))); c.gasto += m.gasto; c.chats += m.chats;
+    const cp = r.campanas[m.campana] = r.campanas[m.campana] || { gasto:0, chats:0 }; cp.gasto += m.gasto; cp.chats += m.chats;
+    const l = lineaDeCampana(m.campana) || "Campañas sin línea en el nombre"; L(l).gasto += m.gasto; L(l).chats += m.chats;
+  });
+  datos.ventas.forEach(v=>{
+    if(v.fecha<desde || v.fecha>hasta) return;
+    r.n++; r.ingresos += v.monto;
+    const c = C(canon(v.curso)); c.n++; c.ingresos += v.monto;
+    if(v.linea){ const l = L(v.linea); l.n++; l.ingresos += v.monto; }
+  });
+  return r;
+}
+function filaVentas(nombre, x, op){
+  const partes = [`${x.n} ventas`, `ingresos ${pesos(x.ingresos)}`, `publicidad ${pesos(x.gasto)}`, `ROAS ${x.gasto ? (x.ingresos/x.gasto).toFixed(2) : "sin gasto"}`, `costo por venta ${!x.n ? "sin ventas" : x.gasto ? pesos(x.gasto/x.n) : "sin gasto"}`, `chats iniciados ${x.chats}`, `conversión chat a venta ${x.chats && x.chats>=x.n ? Math.round(x.n/x.chats*100)+"%" : "sin datos"}`];
+  if(op!=null) partes.push(`gastos operativos ${pesos(op)}`, `GANANCIA ${pesos(x.ingresos - x.gasto - op)}`);
+  else partes.push(`ganancia antes de gastos operativos ${pesos(x.ingresos - x.gasto)}`);
+  return `- ${nombre}: ${partes.join(" · ")}`;
+}
+function textoVentas(datos, actualizado){
+  const c = ventasCfg(), hoy = hoyBog(), mesIni = hoy.slice(0,8)+"01";
+  const [an, me, di] = hoy.split("-").map(Number), diasMes = new Date(an, me, 0).getDate();
+  const opMes = gastosMes(c), opDia = opMes / diasMes;
+  const cursos = [...new Set([...datos.ventas.map(v=>v.curso), ...(store.productos||[]).filter(p=>p.estado==="aprobado").map(p=>p.nombre)])].filter(Boolean);
+  const per = (desde, hasta) => agruparVentas(datos, desde, hasta, cursos);
+  const hoyR = per(hoy, hoy), ayer = per(diaMenos(hoy,1), diaMenos(hoy,1)), sem = per(diaMenos(hoy,6), hoy), mes = per(mesIni, hoy);
+  const lista = (obj, op) => Object.entries(obj).sort((a,b)=>(b[1].ingresos+b[1].gasto)-(a[1].ingresos+a[1].gasto)).map(([k,x])=>filaVentas(k, x, op)).join("\n") || "- Sin datos";
+  let s = `Datos actualizados: ${actualizado || "sin fecha"} (hora de Colombia). Hoy es ${hoy}.
+Gastos operativos del mes: ${pesos(opMes)} (${c.gastos.map(g=>`${g.nombre} ${g.moneda==="USD" ? g.monto+" USD" : pesos(g.monto)}`).join(", ")}; dólar a ${pesos(c.tasa)}). Repartidos por día: ${pesos(opDia)} diarios.
+
+RESUMEN DEL MES (${mesIni} a ${hoy}, ${di} días):
+${filaVentas("Este mes", mes, opDia*di)}
+
+HOY (hasta la hora de los datos; el gasto de Meta de hoy puede ir atrasado unas horas):
+${filaVentas("Hoy", hoyR, opDia)}
+
+AYER (${diaMenos(hoy,1)}):
+${filaVentas("Ayer", ayer, opDia)}
+
+ÚLTIMOS 7 DÍAS (${diaMenos(hoy,6)} a ${hoy}):
+${filaVentas("7 días", sem, opDia*7)}
+
+DÍA POR DÍA (últimos 14 días):
+${Array.from({length:14}, (_,i)=>diaMenos(hoy,i)).map(d=>filaVentas(d, per(d,d), opDia)).join("\n")}
+
+POR CURSO, ÚLTIMOS 7 DÍAS (la campaña se asigna al curso por su nombre):
+${lista(sem.cursos)}
+
+POR CURSO, ESTE MES:
+${lista(mes.cursos)}
+
+POR LÍNEA DE WHATSAPP, ÚLTIMOS 7 DÍAS (ventas según la columna ID de la hoja; el gasto solo se asigna a una línea cuando el nombre de la campaña la menciona, por ejemplo "312"):
+${lista(sem.lineas)}
+
+POR LÍNEA DE WHATSAPP, ESTE MES:
+${lista(mes.lineas)}
+
+CAMPAÑAS DE LOS ÚLTIMOS 7 DÍAS (gasto y chats iniciados):
+${Object.entries(sem.campanas).sort((a,b)=>b[1].gasto-a[1].gasto).map(([k,x])=>`- ${k}: gasto ${pesos(x.gasto)} · chats ${x.chats} · costo por chat ${x.chats ? pesos(x.gasto/x.chats) : "sin chats"} · curso asignado: ${cursoDeCampana(k, cursos)}`).join("\n") || "- Sin campañas con gasto"}`;
+  return { texto: s, mes, opDia, di };
+}
+async function leerResumenVentas(t, signal){
+  const c = ventasCfg();
+  const fechaDe = s => { const m = String(s).match(/^ACTUALIZADO\|(\d{4}-\d{2}-\d{2}) (\d{2}):(\d{2})/); return m ? new Date(`${m[1]}T${m[2]}:${m[3]}:00-05:00`) : null; };
+  const paso = txt => { t.resultado = txt; if(abierta===t.id) pintarDetalle(); };
+  paso("Leyendo tus ventas y el gasto de Meta…");
+  let txt = await textoDrive(c.archivo), f = fechaDe(txt);
+  if(!f || Date.now() - f > 40*60000){
+    paso("Actualizando el gasto de Meta y tu hoja de ventas en Make…");
+    try{
+      await mcallCrudo(MAKE, "scenarios_run", { scenarioId: Number(c.escenario), responsive:false });
+      const ini = Date.now();
+      while(Date.now()-ini < 4*60000){
+        await esperar(15000, signal);
+        const n = await textoDrive(c.archivo), fn = fechaDe(n);
+        if(fn && (!f || fn > f)){ txt = n; f = fn; break; }
+      }
+    }catch(e){ if(e && e.code==="aborted") throw e; }
+  }
+  const m = String(txt).match(/^ACTUALIZADO\|([^\n]+)/);
+  return { txt, actualizado: m ? m[1] : "" };
+}
+async function seguimientoVentas(t, opts){
+  let leido;
+  try{ leido = await leerResumenVentas(t, opts.signal); }
+  catch(e){ if(e && e.code==="aborted") throw e; throw { message: "No pude leer el resumen de ventas en Drive: " + errTxt(e) }; }
+  const datos = parsearVentas(leido.txt);
+  if(!datos.ventas.length && !datos.meta.length) throw { message: "El resumen de ventas está vacío. Revisa en Make el escenario \"Resumen de ventas (Oficina)\"." };
+  const calc = textoVentas(datos, leido.actualizado);
+  t.ventasRes = { actualizado: leido.actualizado, ganMes: Math.round(calc.mes.ingresos - calc.mes.gasto - calc.opDia*calc.di), ventasMes: calc.mes.n };
+  t.resultado = "";
+  const extra = `DATOS DE VENTAS CALCULADOS POR LA OFICINA (ya están sumados y son exactos: ventas de la hoja "Tabla de Utilidad Cursos" y gasto real de Meta Ads; úsalos tal cual, no recalcules ni inventes cifras):
+<<<
+${calc.texto}
+>>>
+
+`;
+  return await sample(prompt(t, extra), { ...opts, modelTier:"complex" });
+}
+function ultimoSeguimiento(t){
+  if(t.origen && esSeguimiento(t.origen.dept, t.origen.agente)) return "";
+  const s = store.tareas.filter(x=>esSeguimiento(x.dept, x.agente) && x.estado==="lista" && x.resultado).sort((a,b)=>(b.terminada||0)-(a.terminada||0))[0];
+  return s ? `ÚLTIMO REPORTE DEL SEGUIMIENTO DE VENTAS (${new Date(s.terminada||s.creada).toLocaleDateString("es")}); úsalo para proponer mejoras de conversión:
+<<<
+${s.resultado.slice(0,6000)}
+>>>
+
+` : "";
+}
+const INSTR_VENTAS = {
+  "ventas/0": `Eres el analista de resultados del negocio. Trabajas solo con los datos calculados que te pasa la oficina; nunca inventes cifras.
+Cada reporte empieza con una línea grande: "Este mes llevas $X de ganancia" (ventas menos publicidad de Meta menos gastos operativos).
+Luego, en este orden:
+1. Hoy y ayer: ventas, ingresos, publicidad, ROAS y ganancia.
+2. Últimos 7 días en una tabla corta por día.
+3. Por curso: ventas, ingresos, publicidad, ROAS, costo por venta, chats y conversión de chat a venta.
+4. Por línea de WhatsApp.
+5. Alertas: días o campañas que pierden plata, campañas que gastan sin ventas, cursos con costo por venta alto y conversión de chat a venta que baja.
+6. Tres recomendaciones concretas (escalar, pausar, duplicar campaña o mejorar los textos de WhatsApp) explicando con qué número lo justificas.
+Usa pesos colombianos y cifras redondeadas. Si una campaña no se pudo asignar a un curso, dilo para que el dueño le cambie el nombre.`,
+  "ventas/1": `Escribes los textos que se envían por WhatsApp a quien escribe desde un anuncio. Entrega siempre, en este orden y bien separados:
+1. TEXTO DE INICIO: título del curso, qué es (1 o 2 frases), beneficios (lista corta) y precio.
+2. FOTOS: aquí van 2 fotos; describe qué debe mostrar cada una.
+3. TEXTO DEL BONO: qué bono se lleva y por qué vale la pena.
+4. TEXTO DE APERTURA: el link de la página del curso, el precio, y termina exactamente con: "¿Tienes alguna duda o quieres que te envíe los métodos de pago?"
+Tono cercano y colombiano, tuteo, frases cortas y emojis moderados. Si no tienes el link, el precio o el bono, déjalos entre [corchetes].
+Si recibes el reporte del Seguimiento de ventas, termina con MEJORAS DE CONVERSIÓN: de 3 a 5 cambios concretos a estos textos basados en los números (conversión de chat a venta, costo por venta, cursos que más venden) y qué número esperas mejorar con cada uno.`
+};
+function instrVentasIniciales(){
+  if(store.ventasIni) return;
+  store.equipo = store.equipo || {};
+  Object.entries(INSTR_VENTAS).forEach(([k,v])=>{ const o = store.equipo[k] || {}; if(!(o.instrucciones && o.instrucciones.trim())) store.equipo[k] = { ...o, instrucciones: v }; });
+  store.ventasIni = true;
 }
 
 /* ---------- Investigación de productos (Perplexity y Apify vía Make) ---------- */
@@ -1732,7 +1953,7 @@ const SUGERENCIAS = {
   "audiovisual/3": "Con la ficha y las escenas recibidas, crea los 3 prompts de imagen (gancho, desarrollo y llamado a la acción) en estilo foto UGC real de celular, usando la hoja de 6 vistas como referencia. Incluye el diálogo exacto de cada momento.",
   "audiovisual/2": "Con las 3 imágenes y sus diálogos, crea un prompt de video por cada imagen, usando cada imagen como frame inicial. Divide en clips de máximo 8 segundos cuando el diálogo sea largo, y entrega el orden de montaje.",
   "marketing/2": "Con el guion recibido, escribe el copy del anuncio para Meta Ads con la estructura PSBA (Problema, Solución, Beneficio y Acción), que lleve a escribir al WhatsApp, siguiendo tu formato de entrega.",
-  "ventas/1": "Con lo recibido, escribe el mensaje de bienvenida para quien escribe al WhatsApp desde este contenido: corto, cercano, que presente el curso y termine con una pregunta.",
+  "ventas/1": "Con lo recibido, escribe los textos de WhatsApp para este curso siguiendo tu formato: inicio, las 2 fotos, bono y apertura.",
   "ventas/3": "Con lo recibido, escribe 3 mensajes de seguimiento por WhatsApp para quien preguntó y no compró (al día siguiente, a los 3 días y a los 7 días), cortos y sin presionar."
 };
 function renderPasos(){
@@ -2211,7 +2432,23 @@ function invHTML(t){
   if(f.per || f.ads) h += `<div class="chain" style="margin:8px 0 0">${f.per ? `<a class="drv" href="${esc(f.per)}" target="_blank" rel="noopener">Datos de la búsqueda web</a>` : ""}${f.ads ? `<a class="drv" href="${esc(f.ads)}" target="_blank" rel="noopener">Anuncios de Apify</a>` : ""}</div>`;
   return h + `</div>`;
 }
-function abrirNegocio(){ $("invPer").value = escInv("per") || ""; $("invPedir").value = escInv("pedir") || ""; $("invTraer").value = escInv("traer") || ""; $("bizTxt").value = store.negocio; const cfg = driveCfg(); $("driveOn").checked = cfg.activo; $("imgOn").checked = imgCfg().auto; $("imgMax").value = imgCfg().max; $("imgFmt").value = imgCfg().formato; $("imgEsc").value = imgCfg().escenario || ESCENARIO_DEF; $("impMsg").textContent = ""; $("sonidoOn").checked = avisosCfg().sonido; $("driveLink").innerHTML = cfg.raizUrl ? `<a href="${esc(cfg.raizUrl)}" target="_blank" rel="noopener">Abrir la carpeta</a>` : ""; $("bizDlg").classList.add("open"); $("bizTxt").focus(); }
+let gastosDraft = [];
+function renderGastos(){
+  $("gastosList").innerHTML = gastosDraft.map((g,i)=>`<div class="gasto-row" data-i="${i}"><input data-g="nombre" value="${esc(g.nombre)}" placeholder="Nombre del gasto" aria-label="Nombre del gasto"><input data-g="monto" inputmode="decimal" value="${esc(g.monto)}" aria-label="Valor mensual"><select data-g="moneda" aria-label="Moneda"><option value="COP"${g.moneda!=="USD"?" selected":""}>COP</option><option value="USD"${g.moneda==="USD"?" selected":""}>USD</option></select><button type="button" data-gdel aria-label="Quitar gasto">×</button></div>`).join("");
+  totalGastos();
+}
+function totalGastos(){
+  const tasa = Number(String($("ventasTasa").value).replace(/\D/g,"")) || VENTAS_DEF.tasa;
+  const tot = gastosDraft.reduce((s,g)=>s + gastoCop({ monto: aNumero(g.monto), moneda: g.moneda }, tasa), 0);
+  const [an, me] = hoyBog().split("-").map(Number);
+  $("gastosTot").innerHTML = `Total: <b>${pesos(tot)} al mes</b>, unos ${pesos(tot / new Date(an, me, 0).getDate())} por día.`;
+}
+$("gastosList").addEventListener("input", e=>{ const row = e.target.closest(".gasto-row"), k = e.target.dataset.g; if(!row || !k) return; const g = gastosDraft[Number(row.dataset.i)]; g[k] = k==="monto" ? aNumero(e.target.value) : e.target.value; totalGastos(); });
+$("gastosList").addEventListener("change", e=>{ const row = e.target.closest(".gasto-row"), k = e.target.dataset.g; if(!row || !k) return; gastosDraft[Number(row.dataset.i)][k] = k==="monto" ? aNumero(e.target.value) : e.target.value; totalGastos(); });
+$("gastosList").addEventListener("click", e=>{ if(!e.target.closest("[data-gdel]")) return; gastosDraft.splice(Number(e.target.closest(".gasto-row").dataset.i), 1); renderGastos(); });
+$("gastoAdd").onclick = ()=>{ gastosDraft.push({ nombre:"", monto:0, moneda:"COP" }); renderGastos(); const ins = $("gastosList").querySelectorAll('input[data-g="nombre"]'); ins[ins.length-1].focus(); };
+$("ventasTasa").addEventListener("input", totalGastos);
+function abrirNegocio(){ { const c = ventasCfg(); gastosDraft = c.gastos.map(g=>({...g})); $("ventasTasa").value = c.tasa; $("ventasEsc").value = c.escenario; renderGastos(); } $("invPer").value = escInv("per") || ""; $("invPedir").value = escInv("pedir") || ""; $("invTraer").value = escInv("traer") || ""; $("bizTxt").value = store.negocio; const cfg = driveCfg(); $("driveOn").checked = cfg.activo; $("imgOn").checked = imgCfg().auto; $("imgMax").value = imgCfg().max; $("imgFmt").value = imgCfg().formato; $("imgEsc").value = imgCfg().escenario || ESCENARIO_DEF; $("impMsg").textContent = ""; $("sonidoOn").checked = avisosCfg().sonido; $("driveLink").innerHTML = cfg.raizUrl ? `<a href="${esc(cfg.raizUrl)}" target="_blank" rel="noopener">Abrir la carpeta</a>` : ""; $("bizDlg").classList.add("open"); $("bizTxt").focus(); }
 
 /* ---------- Eventos ---------- */
 $("deptChips").onclick = e=>{ const b=e.target.closest("[data-d]"); if(b){ deptSel=b.dataset.d; renderChips(); actualizarEscena(); if(escenaLista) enfocarSala(deptSel); } };
@@ -2421,7 +2658,7 @@ $("eqSave").onclick = ()=>{
   renderChips(); renderPasos(); renderAll(); renderEqList();
   $("eqOk").hidden = false;
 };
-$("bizSave").onclick = ()=>{ store.negocio=$("bizTxt").value; driveCfg().activo = $("driveOn").checked; imgCfg().auto = $("imgOn").checked; imgCfg().max = Math.min(10, Math.max(1, Number($("imgMax").value)||4)); imgCfg().formato = $("imgFmt").value; { const e = Number(String($("imgEsc").value).replace(/\D/g,"")); if(e) imgCfg().escenario = e; } avisosCfg().sonido = $("sonidoOn").checked; [["per","invPer"],["pedir","invPedir"],["traer","invTraer"]].forEach(([k,id])=>{ const e = Number(String($(id).value).replace(/\D/g,"")); if(e) invCfg()[k] = e; }); if(avisosCfg().sonido) sonar(true); $("bizDlg").classList.remove("open"); save(); renderAll(); };
+$("bizSave").onclick = ()=>{ store.negocio=$("bizTxt").value; driveCfg().activo = $("driveOn").checked; imgCfg().auto = $("imgOn").checked; imgCfg().max = Math.min(10, Math.max(1, Number($("imgMax").value)||4)); imgCfg().formato = $("imgFmt").value; { const e = Number(String($("imgEsc").value).replace(/\D/g,"")); if(e) imgCfg().escenario = e; } avisosCfg().sonido = $("sonidoOn").checked; [["per","invPer"],["pedir","invPedir"],["traer","invTraer"]].forEach(([k,id])=>{ const e = Number(String($(id).value).replace(/\D/g,"")); if(e) invCfg()[k] = e; }); { const c = ventasCfg(); c.gastos = gastosDraft.filter(g=>String(g.nombre).trim() && Number(g.monto)>0).map(g=>({ nombre:String(g.nombre).trim(), monto:Number(g.monto), moneda:g.moneda==="USD"?"USD":"COP" })); const ta = Number(String($("ventasTasa").value).replace(/\D/g,"")); if(ta) c.tasa = ta; const ve = Number(String($("ventasEsc").value).replace(/\D/g,"")); if(ve) c.escenario = ve; } if(avisosCfg().sonido) sonar(true); $("bizDlg").classList.remove("open"); save(); renderAll(); };
 
 /* ---------- Escena 3D ---------- */
 const stage = $("stage"), labelsEl = $("labels");
