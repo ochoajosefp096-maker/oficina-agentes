@@ -139,3 +139,15 @@ En Ventas trabajan dos agentes. El Cerrador y el Seguimiento de leads están ocu
 - Escribe los textos de WhatsApp en este orden: inicio (título, qué es, beneficios y precio), las 2 fotos, el bono y la apertura (link, precio y "¿Tienes alguna duda o quieres que te envíe los métodos de pago?").
 - Usa el último reporte del Seguimiento de ventas para proponer mejoras de conversión.
 - Sus instrucciones se pueden editar en **Equipo**.
+
+### Ventas al instante, público y contador del cerebro
+- **Las ventas salen solo de tu hoja.** La oficina lee la primera hoja de "Tabla de Utilidad Cursos" en ese momento desde Drive, sin modificarla. Las compras que reporta Meta no se usan. De Meta se toman solo el gasto y las métricas: chats, impresiones, clics, CPM, CTR y CPC.
+- **Público de los últimos 7 días**, sacado de Meta:
+  - Por sexo y por edad. Como la hoja no guarda el sexo del comprador, se usa a quién escribe al WhatsApp.
+  - Por región. Meta da departamentos, no ciudades; Bogotá sale como "Bogotá D.C.". Meta no da chats por región, así que se compara el gasto, el CPM, el CTR y el CPC.
+  - Por plataforma y ubicación: feed, reels, historias de Facebook e Instagram.
+- **Contador del cerebro:** sobre el cerebro aparece "Hoy vamos en ganancia" en verde o "Hoy vamos en pérdida" en rojo.
+  - Cuenta las ventas de hoy de la hoja, menos el gasto de Meta de hoy, menos los gastos operativos de un día.
+  - Se actualiza cada 5 minutos con la oficina abierta. Las ventas son las del momento; el gasto de Meta es el de la última actualización de Make.
+  - Al tocarlo abre el último seguimiento.
+- **El escenario de Make** ahora gasta unas 13 operaciones por corrida, unas 1.600 al mes.

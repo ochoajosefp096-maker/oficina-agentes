@@ -69,6 +69,12 @@ main{display:grid;grid-template-columns:1fr 400px;min-height:0}
 .room-pill em{font-style:normal;background:var(--c);color:#fff;border-radius:999px;padding:0 7px;font-size:11.5px;line-height:18px}
 .room-pill em.soft{background:var(--panel-2);color:var(--ink)}
 .room-pill.plain{cursor:pointer}
+.contador{position:absolute;transform:translate(-50%,-100%);pointer-events:auto;cursor:pointer;text-align:center;padding:7px 14px 8px;border-radius:12px;background:rgba(12,16,28,.86);border:1.5px solid var(--cc);box-shadow:0 0 18px -2px var(--cc),inset 0 0 12px -6px var(--cc);white-space:nowrap;--cc:#22C55E}
+.contador.perdida{--cc:#EF4444}
+.contador[hidden]{display:none}
+.contador b{display:block;font:700 9.5px/1.2 var(--display,system-ui);letter-spacing:.12em;color:#C9D2E8;text-transform:uppercase}
+.contador strong{display:block;font:700 26px/1.1 ui-monospace,"SF Mono",Menlo,Consolas,monospace;color:var(--cc);text-shadow:0 0 10px var(--cc);margin-top:2px}
+.contador span{display:block;font-size:10.5px;color:#9AA6C2;margin-top:2px}
 .burbuja{position:absolute;transform:translate(-50%,-100%);display:flex;gap:3px;padding:6px 9px;background:var(--panel);border:1px solid var(--line);border-radius:12px 12px 12px 3px;box-shadow:0 6px 14px -8px rgba(20,30,60,.5);pointer-events:none}
 .burbuja i{width:5px;height:5px;border-radius:50%;background:var(--muted);animation:puntos 1.1s infinite ease-in-out}
 .burbuja i:nth-child(2){animation-delay:.15s}.burbuja i:nth-child(3){animation-delay:.3s}
@@ -687,7 +693,7 @@ function compactarTareas(){
   store.tareas.forEach((t,i)=>{ if(fin(t) && t.entrada && (!t.origen || store.tareas.some(x=>x.id===t.origen.id))) delete t.entrada; if(i>=25 && fin(t) && t.resultado && t.resultado.length>6200) t.resultado = t.resultado.slice(0,6000) + "\n\n… (el resultado completo quedó guardado en Google Drive)"; });
   while(store.tareas.length>70){ const i = store.tareas.map(fin).lastIndexOf(true); if(i<0) break; store.tareas.splice(i,1); }
 }
-function datosOficina(){ return { tareas: store.tareas.map(t=>({...t})), negocio: store.negocio, rutinas: store.rutinas.map(r=>({...r})), drive: driveCfg(), avisos: avisosCfg(), img: imgCfg(), equipo: store.equipo || {}, briefReel: store.briefReel || null, planUlt: store.planUlt || null, calCfg: calCfg(), invCfg: invCfg(), invUlt: store.invUlt || null, productos: store.productos || [], ventasCfg: ventasCfg(), ventasIni: Number(store.ventasIni) || 0 }; }
+function datosOficina(){ return { tareas: store.tareas.map(t=>({...t})), negocio: store.negocio, rutinas: store.rutinas.map(r=>({...r})), drive: driveCfg(), avisos: avisosCfg(), img: imgCfg(), equipo: store.equipo || {}, briefReel: store.briefReel || null, planUlt: store.planUlt || null, calCfg: calCfg(), invCfg: invCfg(), invUlt: store.invUlt || null, productos: store.productos || [], ventasCfg: ventasCfg(), ventasIni: Number(store.ventasIni) || 0, ventasHoy: store.ventasHoy || null }; }
 async function saveCal(){
   if(savingCal){ pendingCal = true; return; }
   savingCal = true;
@@ -715,7 +721,7 @@ async function initStorage(){
       const snap = await docRef.get();
       const crudo = snap && snap.data && snap.data();
       const data = crudo ? JSON.parse(JSON.stringify(crudo)) : null;
-      if(data) store = { tareas: Array.isArray(data.tareas)?data.tareas:[], negocio: data.negocio||"", rutinas: Array.isArray(data.rutinas)?data.rutinas:[], drive: data.drive || { activo:true, carpetas:{} }, avisos: data.avisos || { sonido:true }, img: data.img || { auto:true, max:4 }, equipo: data.equipo || {}, briefReel: data.briefReel || null, planUlt: data.planUlt || null, calCfg: data.calCfg || null, invCfg: data.invCfg || {}, invUlt: data.invUlt || null, productos: Array.isArray(data.productos) ? data.productos : [], ventasCfg: data.ventasCfg || null, ventasIni: Number(data.ventasIni) || 0 };
+      if(data) store = { tareas: Array.isArray(data.tareas)?data.tareas:[], negocio: data.negocio||"", rutinas: Array.isArray(data.rutinas)?data.rutinas:[], drive: data.drive || { activo:true, carpetas:{} }, avisos: data.avisos || { sonido:true }, img: data.img || { auto:true, max:4 }, equipo: data.equipo || {}, briefReel: data.briefReel || null, planUlt: data.planUlt || null, calCfg: data.calCfg || null, invCfg: data.invCfg || {}, invUlt: data.invUlt || null, productos: Array.isArray(data.productos) ? data.productos : [], ventasCfg: data.ventasCfg || null, ventasIni: Number(data.ventasIni) || 0, ventasHoy: data.ventasHoy || null };
       try{ const cs = calRef ? await calRef.get() : null; const cd = cs && cs.data && cs.data(); store.calendario = cd && Array.isArray(cd.items) ? JSON.parse(JSON.stringify(cd.items)) : []; }catch(e){ store.calendario = []; }
     }else{
       const raw = localStorage.getItem("oficina-agentes");
@@ -733,6 +739,7 @@ async function initStorage(){
   aplicarEquipo();
   cargado = true;
   if(nuevasVentas) save();
+  pintarContador(); setTimeout(actualizarContador, 2500);
   renderAll(); revisarRutinas();
 }
 async function save(){
@@ -1236,13 +1243,13 @@ function avisoImagenes(t, ok, total){
 }
 
 /* ---------- Seguimiento de ventas (gasto de Meta y hoja de ventas vía Make) ---------- */
-const VENTAS_DEF = { escenario: 6647751, archivo: "1GTYR0thoo8PQEq1TrF-NOeI7V1Lhvz91", tasa: 4000,
+const VENTAS_DEF = { escenario: 6647751, archivo: "1GTYR0thoo8PQEq1TrF-NOeI7V1Lhvz91", hoja: "1UYt0WwY0DvahTjuJtPHlehqP1IV7BHb62uzrFaDx3q0", tasa: 4000,
   gastos: [ { nombre:"OpenAI (respuestas de N8N)", monto:100000, moneda:"COP" }, { nombre:"Servidor de N8N", monto:20000, moneda:"COP" }, { nombre:"Claude", monto:65000, moneda:"COP" }, { nombre:"Make", monto:9, moneda:"USD" }, { nombre:"APIMart (imágenes)", monto:20, moneda:"USD" } ] };
 function ventasCfg(){
   if(!store.ventasCfg) store.ventasCfg = JSON.parse(JSON.stringify(VENTAS_DEF));
   const c = store.ventasCfg;
   if(!Array.isArray(c.gastos)) c.gastos = [];
-  ["tasa","escenario","archivo"].forEach(k=>{ if(!c[k]) c[k] = VENTAS_DEF[k]; });
+  ["tasa","escenario","archivo","hoja"].forEach(k=>{ if(!c[k]) c[k] = VENTAS_DEF[k]; });
   return c;
 }
 const esSeguimiento = (dept, ag) => dept==="ventas" && String(ag)==="0";
@@ -1283,8 +1290,8 @@ function fechaHoja(s){
 function parsearVentas(txt){
   const meta = [], ventas = [];
   // ===META2===: fecha|gasto|chats|impresiones|clics|clics en el enlace|campaña. ===META===: fecha|campaña|gasto|chats
-  const v2 = txt.includes("===META2==="), iM = txt.indexOf(v2 ? "===META2===" : "===META==="), iH = txt.indexOf("===HOJA===");
-  if(iM>=0) txt.slice(iM + (v2 ? 11 : 10), iH>iM ? iH : undefined).split("\n").forEach(l=>{
+  const v2 = txt.includes("===META2==="), iH = txt.indexOf("===HOJA===");
+  seccionVentas(txt, v2 ? "META2" : "META").split("\n").forEach(l=>{
     const p = l.split("|"); if(p.length<4) return;
     const fecha = p[0].trim().slice(0,10); if(!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return;
     if(v2) meta.push({ fecha, gasto: Number(p[1])||0, chats: Number(p[2])||0, impr: Number(p[3])||0, clics: Number(p[4])||0, enlace: Number(p[5])||0, campana: p.slice(6).join("|").trim() });
@@ -1293,18 +1300,51 @@ function parsearVentas(txt){
   let hoja = null; try{ hoja = iH>=0 ? JSON.parse(txt.slice(iH+10).trim()) : null; }catch(e){}
   ((hoja && hoja.sheets) || []).forEach(s=>{
     const filas = (s.data && s.data[0] && s.data[0].rowData) || [];
-    const val = r => ((r && r.values) || []).map(v=>v.formattedValue ?? "");
-    const cab = filas.length ? val(filas[0]).map(h=>norm(String(h)).trim()) : [];
-    const col = k => cab.findIndex(h=>h.startsWith(k));
-    const iF = col("fecha"), iC = col("curso"), iV = col("venta"), iI = cab.findIndex(h=>h==="id"||h==="linea");
-    if(iF<0 || iC<0 || iV<0) return;
-    filas.slice(1).forEach(r=>{
-      const v = val(r), fecha = fechaHoja(v[iF]), monto = aNumero(v[iV]);
-      if(!fecha || !monto) return;
-      ventas.push({ fecha, curso: String(v[iC]||"").trim() || "Sin curso", monto, linea: iI>=0 ? String(v[iI]||"").trim() : "" });
-    });
+    ventas.push(...ventasDeFilas(filas.map(r=>((r && r.values) || []).map(v=>v.formattedValue ?? ""))));
   });
-  return { meta, ventas };
+  const filasPub = (nombre, nClave) => seccionVentas(txt, nombre).split("\n").map(l=>l.split("|")).filter(p=>p.length>=nClave+4).map(p=>({ clave: p.slice(0,nClave).map(x=>x.trim()).join(" · "), gasto: Number(p[nClave])||0, chats: Number(p[nClave+1])||0, impr: Number(p[nClave+2])||0, clics: Number(p[nClave+3])||0, n:0, ingresos:0, enlace:0 }));
+  return { meta, ventas, sexoEdad: filasPub("SEXO_EDAD", 2), region: filasPub("REGION", 1), ubicacion: filasPub("UBICACION", 2) };
+}
+function seccionVentas(txt, nombre){
+  const i = txt.indexOf(`===${nombre}===`); if(i<0) return "";
+  const ini = i + nombre.length + 6, fin = txt.indexOf("\n===", ini);
+  return txt.slice(ini, fin<0 ? undefined : fin);
+}
+function ventasDeFilas(filas){
+  const out = [], cab = filas.length ? filas[0].map(h=>norm(String(h)).trim()) : [];
+  const col = k => cab.findIndex(h=>h.startsWith(k));
+  const iF = col("fecha"), iC = col("curso"), iV = col("venta"), iI = cab.findIndex(h=>h==="id"||h==="linea");
+  if(iF<0 || iC<0 || iV<0) return out;
+  filas.slice(1).forEach(v=>{
+    const fecha = fechaHoja(v[iF]), monto = aNumero(v[iV]);
+    if(!fecha || !monto) return;
+    out.push({ fecha, curso: String(v[iC]||"").trim() || "Sin curso", monto, linea: iI>=0 ? String(v[iI]||"").trim() : "" });
+  });
+  return out;
+}
+function leerCsv(txt){
+  const filas = []; let fila = [], campo = "", q = false;
+  for(let i=0;i<txt.length;i++){
+    const c = txt[i];
+    if(q){ if(c==='"'){ if(txt[i+1]==='"'){ campo += '"'; i++; } else q = false; } else campo += c; }
+    else if(c==='"') q = true;
+    else if(c===","){ fila.push(campo); campo = ""; }
+    else if(c==="\n" || c==="\r"){ if(c==="\r" && txt[i+1]==="\n") i++; fila.push(campo); filas.push(fila); fila = []; campo = ""; }
+    else campo += c;
+  }
+  if(campo || fila.length){ fila.push(campo); filas.push(fila); }
+  return filas;
+}
+// Ventas al instante: lee la primera hoja de "Tabla de Utilidad Cursos" como CSV desde Drive (solo lectura)
+async function ventasEnVivo(datos){
+  try{
+    const d = await dcall("download_file_content", { fileId: ventasCfg().hoja, exportMimeType: "text/csv" });
+    const bin = atob(String(d.content || "")), u8 = new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) u8[i] = bin.charCodeAt(i);
+    const v = ventasDeFilas(leerCsv(new TextDecoder("utf-8").decode(u8)));
+    if(v.length){ datos.ventas = v; datos.ventasVivo = true; }
+  }catch(e){}
+  return datos;
 }
 function cursoDeCampana(nombre, cursos){
   const n = norm(nombre);
@@ -1337,9 +1377,27 @@ function agruparVentas(datos, desde, hasta, cursos){
   });
   return r;
 }
-function metricasMeta(x){
-  const m = [`chats iniciados ${x.chats}`, `costo por chat ${x.chats ? pesos(x.gasto/x.chats) : "sin chats"}`];
-  if(x.impr) m.push(`impresiones ${Math.round(x.impr).toLocaleString("es-CO")}`, `CPM ${pesos(x.gasto/x.impr*1000)}`, `CTR ${(x.clics/x.impr*100).toFixed(2)}%`, `CTR de enlace ${(x.enlace/x.impr*100).toFixed(2)}%`, `CPC ${x.clics ? pesos(x.gasto/x.clics) : "sin clics"}`);
+function publicoTxt(d){
+  const fila = (x, sinChats) => `- ${x.clave}: gasto ${pesos(x.gasto)} · ${metricasMeta(x, sinChats===true).join(" · ")}`;
+  const sumarPor = (filas, fn) => { const o = {}; filas.forEach(f=>{ const k = fn(f); const a = o[k] = o[k] || { clave:k, gasto:0, chats:0, impr:0, clics:0, enlace:0, n:0 }; a.gasto += f.gasto; a.chats += f.chats; a.impr += f.impr; a.clics += f.clics; }); return Object.values(o); };
+  const orden = arr => arr.sort((a,b)=>b.chats-a.chats || b.gasto-a.gasto);
+  const SEXO = { female:"Mujeres", male:"Hombres", unknown:"Sin dato" };
+  if(!d.sexoEdad.length && !d.region.length) return "- Todavía no hay desglose del público (se agrega en la próxima actualización de Make).";
+  const total = d.sexoEdad.reduce((s,x)=>s+x.chats, 0) || 1;
+  return `Por sexo:
+${orden(sumarPor(d.sexoEdad, f=>SEXO[f.clave.split(" · ")[0]] || f.clave.split(" · ")[0])).map(x=>fila(x) + ` · ${Math.round(x.chats/total*100)}% de los chats`).join("\n")}
+Por edad:
+${orden(sumarPor(d.sexoEdad, f=>f.clave.split(" · ")[1] || "Sin dato")).map(fila).join("\n")}
+Sexo y edad que más escriben:
+${orden(d.sexoEdad.map(f=>({ ...f, clave: (SEXO[f.clave.split(" · ")[0]] || f.clave.split(" · ")[0]) + " " + (f.clave.split(" · ")[1]||"") }))).slice(0,6).map(fila).join("\n")}
+Por región (Meta da departamentos, no ciudades; "Bogotá D.C." es la ciudad. Meta no reporta chats por región, así que compara gasto, CPM, CTR y CPC):
+${d.region.map(x=>({ ...x, clave: x.clave==="Distrito Especial" ? "Bogotá D.C." : x.clave })).sort((a,b)=>b.gasto-a.gasto).slice(0,12).map(x=>fila(x, true)).join("\n")}
+Por plataforma y ubicación del anuncio:
+${orden(d.ubicacion.slice()).slice(0,10).map(fila).join("\n")}`;
+}
+function metricasMeta(x, sinChats){
+  const m = sinChats ? [] : [`chats iniciados ${x.chats}`, `costo por chat ${x.chats ? pesos(x.gasto/x.chats) : "sin chats"}`];
+  if(x.impr) m.push(`impresiones ${Math.round(x.impr).toLocaleString("es-CO")}`, `CPM ${pesos(x.gasto/x.impr*1000)}`, `CTR ${(x.clics/x.impr*100).toFixed(2)}%`, ...(x.enlace ? [`CTR de enlace ${(x.enlace/x.impr*100).toFixed(2)}%`] : []), `CPC ${x.clics ? pesos(x.gasto/x.clics) : "sin clics"}`);
   return m;
 }
 function filaVentas(nombre, x, op){
@@ -1357,7 +1415,8 @@ function textoVentas(datos, actualizado){
   const hoyR = per(hoy, hoy), ayer = per(diaMenos(hoy,1), diaMenos(hoy,1)), sem = per(diaMenos(hoy,6), hoy), mes = per(mesIni, hoy);
   const campanasTxt = per => Object.entries(per.campanas).filter(([,x])=>x.gasto>0).sort((a,b)=>b[1].gasto-a[1].gasto).map(([k,x])=>`- ${k}: gasto ${pesos(x.gasto)} · ${metricasMeta(x).join(" · ")} · curso asignado: ${cursoDeCampana(k, cursos)}`).join("\n") || "- Sin campañas con gasto";
   const lista = (obj, op) => Object.entries(obj).sort((a,b)=>(b[1].ingresos+b[1].gasto)-(a[1].ingresos+a[1].gasto)).map(([k,x])=>filaVentas(k, x, op)).join("\n") || "- Sin datos";
-  let s = `Datos actualizados: ${actualizado || "sin fecha"} (hora de Colombia). Hoy es ${hoy}.
+  let s = `Gasto de Meta actualizado: ${actualizado || "sin fecha"} (hora de Colombia). Ventas: ${datos.ventasVivo ? "leídas de la hoja en este momento" : "de la misma actualización"}. Hoy es ${hoy}.
+IMPORTANTE: las ventas y los ingresos salen SOLO de la hoja "Tabla de Utilidad Cursos", que es la fuente real. De Meta solo se toman el gasto y las métricas de los anuncios (chats, impresiones, clics, CPM, CTR); las compras que reporta Meta no se usan porque no marca todas las ventas.
 Gastos operativos del mes: ${pesos(opMes)} (${c.gastos.map(g=>`${g.nombre} ${g.moneda==="USD" ? g.monto+" USD" : pesos(g.monto)}`).join(", ")}; dólar a ${pesos(c.tasa)}). Repartidos por día: ${pesos(opDia)} diarios.
 
 RESUMEN DEL MES (${mesIni} a ${hoy}, ${di} días):
@@ -1387,6 +1446,9 @@ ${lista(sem.lineas)}
 POR LÍNEA DE WHATSAPP, ESTE MES:
 ${lista(mes.lineas)}
 
+PÚBLICO DE LOS ÚLTIMOS 7 DÍAS (solo datos de Meta: quién ve los anuncios y quién escribe al WhatsApp; la hoja no dice el sexo ni la ciudad del comprador, así que los chats iniciados son lo más cercano a saber quién compra):
+${publicoTxt(datos)}
+
 CAMPAÑAS DE HOY:
 ${campanasTxt(hoyR)}
 
@@ -1402,6 +1464,7 @@ async function leerResumenVentas(t, signal){
   const fechaDe = s => { const m = String(s).match(/^ACTUALIZADO\|(\d{4}-\d{2}-\d{2}) (\d{2}):(\d{2})/); return m ? new Date(`${m[1]}T${m[2]}:${m[3]}:00-05:00`) : null; };
   const paso = txt => { t.resultado = txt; if(abierta===t.id) pintarDetalle(); };
   paso("Leyendo tus ventas y el gasto de Meta…");
+  await getMcp(); if(!mcp) throw { code:"server_not_connected" };
   let txt = await textoDrive(c.archivo), f = fechaDe(txt);
   if(!f || Date.now() - f > 40*60000){
     paso("Actualizando el gasto de Meta y tu hoja de ventas en Make…");
@@ -1422,7 +1485,8 @@ async function seguimientoVentas(t, opts){
   let leido;
   try{ leido = await leerResumenVentas(t, opts.signal); }
   catch(e){ if(e && e.code==="aborted") throw e; throw { message: "No pude leer el resumen de ventas en Drive: " + errTxt(e) }; }
-  const datos = parsearVentas(leido.txt);
+  const datos = await ventasEnVivo(parsearVentas(leido.txt));
+  calcularHoy(datos, leido.actualizado);
   if(!datos.ventas.length && !datos.meta.length) throw { message: "El resumen de ventas está vacío. Revisa en Make el escenario \"Resumen de ventas (Oficina)\"." };
   const calc = textoVentas(datos, leido.actualizado);
   t.ventasRes = { actualizado: leido.actualizado, ganMes: Math.round(calc.mes.ingresos - calc.mes.gasto - calc.opDia*calc.di), ventasMes: calc.mes.n };
@@ -1435,6 +1499,32 @@ ${calc.texto}
 `;
   return await sample(prompt(t, extra), { ...opts, modelTier:"complex" });
 }
+function calcularHoy(datos, actualizado){
+  const hoy = hoyBog(), cursos = [...new Set(datos.ventas.map(v=>v.curso))];
+  const r = agruparVentas(datos, hoy, hoy, cursos), [an, me] = hoy.split("-").map(Number);
+  const op = gastosMes() / new Date(an, me, 0).getDate();
+  store.ventasHoy = { fecha: hoy, gan: Math.round(r.ingresos - r.gasto - op), ingresos: r.ingresos, gasto: Math.round(r.gasto), n: r.n, act: actualizado || "" };
+  pintarContador();
+}
+function pintarContador(){
+  if(!contadorEl) return;
+  const v = store.ventasHoy;
+  if(!v || v.fecha!==hoyBog()){ contadorEl.hidden = true; return; }
+  const gana = v.gan >= 0, hora = (v.act.split(" ")[1] || "");
+  contadorEl.hidden = false; contadorEl.classList.toggle("perdida", !gana);
+  contadorEl.innerHTML = `<b>Hoy vamos en ${gana ? "ganancia" : "pérdida"}</b><strong>${gana ? "+" : "-"}${pesos(Math.abs(v.gan)).replace("-","")}</strong><span>${v.n} venta${v.n===1?"":"s"} · Meta ${pesos(v.gasto)}${hora ? " (" + horaBonita(hora) + ")" : ""}</span>`;
+}
+let contadorCargando = false;
+async function actualizarContador(){
+  if(contadorCargando) return; contadorCargando = true;
+  try{
+    await getMcp(); if(!mcp) return;
+    const txt = await textoDrive(ventasCfg().archivo), m = String(txt).match(/^ACTUALIZADO\|([^\n]+)/);
+    calcularHoy(await ventasEnVivo(parsearVentas(txt)), m ? m[1] : "");
+    save();
+  }catch(e){} finally{ contadorCargando = false; }
+}
+setInterval(actualizarContador, 5*60000);
 function ultimoSeguimiento(t){
   if(t.origen && esSeguimiento(t.origen.dept, t.origen.agente)) return "";
   const s = store.tareas.filter(x=>esSeguimiento(x.dept, x.agente) && x.estado==="lista" && x.resultado).sort((a,b)=>(b.terminada||0)-(a.terminada||0))[0];
@@ -1454,8 +1544,10 @@ Formato del reporte:
 4. Tabla día por día de los últimos 7 días: ventas, ingresos, gasto, ROAS y ganancia.
 5. Campañas de hoy y de los últimos 7 días: gasto, chats, costo por chat, CPM, CTR y a qué curso pertenece.
 6. Por curso y por línea de WhatsApp.
-7. VEREDICTO: en 2 o 3 frases, cómo va el negocio en este momento (bien, regular o mal) y por qué, comparando hoy con ayer y con el promedio de los últimos 7 días.
-8. QUÉ HACER AHORA: 3 acciones concretas (escalar, pausar, duplicar una campaña, cambiar el creativo o mejorar los textos de WhatsApp), cada una con el número que la justifica.
+7. PÚBLICO (últimos 7 días): si escriben más mujeres u hombres, qué edades y qué regiones traen los chats más baratos, y en qué plataforma y ubicación rinde mejor el anuncio. Aclara que es quién escribe al WhatsApp, no quién compra.
+8. VEREDICTO: en 2 o 3 frases, cómo va el negocio en este momento (bien, regular o mal) y por qué, comparando hoy con ayer y con el promedio de los últimos 7 días.
+9. QUÉ HACER AHORA: 3 acciones concretas (escalar, pausar, duplicar una campaña, ajustar el público por sexo, edad o región, cambiar el creativo o mejorar los textos de WhatsApp), cada una con el número que la justifica.
+Las ventas salen solo de la hoja de ventas; nunca uses las compras que reporta Meta.
 Alertas que debes marcar: días o campañas que pierden plata, campañas que gastan sin chats, CPM que sube o CTR que baja frente a los últimos 7 días, costo por venta alto y conversión de chat a venta que baja.
 Usa pesos colombianos y cifras redondeadas. Si una campaña no se pudo asignar a un curso, dilo para que el dueño le cambie el nombre.`,
   "ventas/1": `Escribes los textos que se envían por WhatsApp a quien escribe desde un anuncio. Entrega siempre, en este orden y bien separados:
@@ -1467,14 +1559,16 @@ Tono cercano y colombiano, tuteo, frases cortas y emojis moderados. Si no tienes
 Si recibes el reporte del Seguimiento de ventas, termina con MEJORAS DE CONVERSIÓN: de 3 a 5 cambios concretos a estos textos basados en los números (conversión de chat a venta, costo por venta, cursos que más venden) y qué número esperas mejorar con cada uno.`
 };
 function instrVentasIniciales(){
-  const v = Number(store.ventasIni) || 0; if(v>=2) return false;
+  const v = Number(store.ventasIni) || 0; if(v>=3) return false;
   store.equipo = store.equipo || {};
   Object.entries(INSTR_VENTAS).forEach(([k,txt])=>{
     const o = store.equipo[k] || {}, prev = String(o.instrucciones || "").trim();
     // Versión 2: reemplaza las instrucciones del Seguimiento solo si siguen siendo las de la versión 1
-    if(!prev || (k==="ventas/0" && prev.startsWith("Eres el analista de resultados del negocio. Trabajas solo con los datos calculados que te pasa la oficina; nunca inventes cifras.\nCada reporte"))) store.equipo[k] = { ...o, instrucciones: txt };
+    // Solo reemplaza las instrucciones del Seguimiento si siguen siendo las de una versión anterior (no las que editó el dueño)
+    const vieja = /^Eres el analista de resultados del negocio\. Trabajas solo con los datos calculados que te pasa la oficina; nunca inventes cifras\.(\nCada reporte| Primero van los números)/.test(prev) && !prev.includes("PÚBLICO (últimos 7 días)");
+    if(!prev || (k==="ventas/0" && vieja)) store.equipo[k] = { ...o, instrucciones: txt };
   });
-  store.ventasIni = 2;
+  store.ventasIni = 3;
   return true;
 }
 
@@ -2737,7 +2831,7 @@ $("bizSave").onclick = ()=>{ store.negocio=$("bizTxt").value; driveCfg().activo 
 /* ---------- Escena 3D ---------- */
 const stage = $("stage"), labelsEl = $("labels");
 let escenaLista = false, renderer, scene, camera;
-let agentes3d = [], orbes = [], autos = [], pills = [], pisos = [], brain, brainMat;
+let contadorEl = null, agentes3d = [], orbes = [], autos = [], pills = [], pisos = [], brain, brainMat;
 let azim = 0.42, targetAzim = 0.42, zoom = 1, zoomObj = 1;
 const ZMIN = 0.6, ZMAX = 4.5, FOCO0 = {x:0, z:-0.5};
 let foco = {x:0, z:-0.5}, focoObj = {x:0, z:-0.5}, seguir = null, marcador = null;
@@ -3199,6 +3293,9 @@ function initEscena(){
   const lg = new THREE.BufferGeometry(); lg.setAttribute("position", new THREE.Float32BufferAttribute(seg,3));
   brain.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({color:0x9AAAF0, transparent:true, opacity:.7})));
   scene.add(brain);
+  contadorEl = document.createElement("div"); contadorEl.className = "contador"; contadorEl.hidden = true; contadorEl.setAttribute("role","button"); contadorEl.title = "Abrir el último seguimiento de ventas";
+  contadorEl.onclick = ()=>{ const s = store.tareas.filter(t=>esSeguimiento(t.dept, t.agente)).sort((a,b)=>b.creada-a.creada)[0]; if(s) abrir(s.id); else { const t = hacerSeguimiento(false); if(t) abrir(t.id); } };
+  labelsEl.appendChild(contadorEl); pintarContador();
 
   /* Cafetería moderna */
   propsCafe();
@@ -3497,6 +3594,7 @@ function loop(now){
   const algunoTrabaja = store.tareas.some(t=>t.estado==="trabajando");
   if(!reduceMotion){ brain.rotation.y += dt*(algunoTrabaja?1.2:0.3); brain.position.y = 2.2 + Math.sin(T*1.5)*0.05; }
   brainMat.emissiveIntensity = algunoTrabaja ? 0.7+Math.sin(T*4)*0.3 : 0.45;
+  if(contadorEl && !contadorEl.hidden){ const [cx, cy] = proyectar(brain.position.x, brain.position.y+0.95, brain.position.z); contadorEl.style.left = cx+"px"; contadorEl.style.top = cy+"px"; }
   if(!reduceMotion) actualizarCharlas(dt);
   agentes3d.forEach(a=>{
     actualizarAgente(a, dt, T);
