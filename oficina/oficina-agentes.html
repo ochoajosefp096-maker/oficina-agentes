@@ -69,6 +69,10 @@ main{display:grid;grid-template-columns:1fr 400px;min-height:0}
 .room-pill em{font-style:normal;background:var(--c);color:#fff;border-radius:999px;padding:0 7px;font-size:11.5px;line-height:18px}
 .room-pill em.soft{background:var(--panel-2);color:var(--ink)}
 .room-pill.plain{cursor:pointer}
+.burbuja{position:absolute;transform:translate(-50%,-100%);display:flex;gap:3px;padding:6px 9px;background:var(--panel);border:1px solid var(--line);border-radius:12px 12px 12px 3px;box-shadow:0 6px 14px -8px rgba(20,30,60,.5);pointer-events:none}
+.burbuja i{width:5px;height:5px;border-radius:50%;background:var(--muted);animation:puntos 1.1s infinite ease-in-out}
+.burbuja i:nth-child(2){animation-delay:.15s}.burbuja i:nth-child(3){animation-delay:.3s}
+@keyframes puntos{0%,60%,100%{transform:translateY(0);opacity:.5}30%{transform:translateY(-3px);opacity:1}}
 .zoom{position:absolute;right:14px;bottom:14px;display:flex;flex-direction:column;align-items:center;gap:8px;background:color-mix(in srgb,var(--panel) 80%,transparent);padding:8px 6px;border-radius:999px;border:1px solid var(--line)}
 .zoom button{width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--panel);font-size:18px;font-weight:600;display:grid;place-items:center}
 #zslider{writing-mode:vertical-lr;direction:rtl;width:28px;height:130px;accent-color:var(--ink);cursor:pointer;margin:2px 0}
@@ -2690,7 +2694,7 @@ function initEscena(){
       const p = persona(LOOKS[d.id][ai], ai===0);
       const seat = {x, z:z-0.62};
       p.g.position.set(seat.x, 0.07, seat.z); p.g.rotation.y = 0;
-      agentes3d.push({ dept:d.id, idx:ai, p, seat, scrMat, room:d.id, estado:"sentado", enAsiento:true, path:[], timer:rnd(3,22), rotObj:0, fase:Math.random()*6, entregar:false });
+      agentes3d.push({ dept:d.id, idx:ai, p, seat, scrMat, room:d.id, estado:"sentado", enAsiento:true, path:[], timer:rnd(30,150), rotObj:0, fase:Math.random()*6, entregar:false });
     });
     ({ ventas:propsVentas, marketing:propsMarketing, correos:propsCorreos, audiovisual:propsAudiovisual })[d.id](R, hex);
   });
@@ -2853,30 +2857,85 @@ function caminar(a, path, alLlegar){
   a.path = path; a.estado = "caminando"; a.alLlegar = alLlegar;
   a.enAsiento = false;
 }
+/* Paseos: pocos a la vez y con charlas sentados en la cafetería */
+const MAX_FUERA = 3;
+const GRUPOS_CAFE = [
+  { puestos:[ {x:-3.75,z:2.2,mira:[-3.2,3.0],sentar:0.07,via:[-1.0,2.7]}, {x:-2.65,z:2.2,mira:[-3.2,3.0],sentar:0.07,via:[-1.0,2.7]}, {x:-4.35,z:3.95,mira:[-3.2,3.0],sentar:0.03,via:[-1.0,4.2]}, {x:-2.05,z:3.95,mira:[-3.2,3.0],sentar:0.03,via:[-1.0,4.2]} ] },
+  { puestos:[ {x:-4.5,z:7.65,mira:[-3.5,7.65],sentar:0.36,via:[-1.0,7.1]}, {x:-3.5,z:7.65,mira:[-4.5,7.65],sentar:0.36,via:[-1.0,7.1]}, {x:-2.5,z:7.65,mira:[-1.5,7.65],sentar:0.36,via:[-1.0,7.1]}, {x:-1.5,z:7.65,mira:[-2.5,7.65],sentar:0.36,via:[-1.0,7.1]} ] },
+  { puestos:[ {x:2.6,z:3.2,mira:[3.9,3.0],sentar:0.05,via:[1.4,4.5]}, {x:3.9,z:3.2,mira:[2.6,3.0],sentar:0.05,via:[1.4,4.5]} ] }
+];
+const fueraDeEscritorio = () => agentes3d.filter(x=>x.estado!=="sentado").length;
+const puestosLibres = g => g.puestos.filter(p=>!p.ocupado);
 function irA(a, room, spot, espera){
-  caminar(a, ruta(a, room, spot, false), ()=>{ a.estado = "parado"; a.timer = espera; a.via = spot.via || null; if(spot.mira) a.rotObj = Math.atan2(spot.mira[0]-spot.x, spot.mira[1]-spot.z); });
+  caminar(a, ruta(a, room, spot, false), ()=>{
+    a.timer = espera; a.via = spot.via || null;
+    if(spot.mira) a.rotObj = Math.atan2(spot.mira[0]-spot.x, spot.mira[1]-spot.z);
+    if(spot.sentar!=null){ a.estado = "sentadoCafe"; a.p.g.position.y = spot.sentar; } else a.estado = "parado";
+  });
+}
+function soltarPuesto(a){
+  if(a.puesto){ a.puesto.ocupado = null; a.puesto = null; }
+  const c = a.charla; a.charla = null; a.hablando = false;
+  if(c){ c.miembros = c.miembros.filter(x=>x!==a); if(c.hablante===a) c.hablante = null; if(c.miembros.length===1){ const otro = c.miembros[0]; otro.timer = Math.min(otro.timer, rnd(3,8)); } }
+}
+function sentarEn(a, sp, charla){
+  sp.ocupado = a; a.puesto = sp;
+  a.charla = charla || { miembros:[], hablante:null, t:0 };
+  a.charla.miembros.push(a);
+  irA(a, "cafe", sp, rnd(30,60));
 }
 function volver(a){
+  soltarPuesto(a);
   a.volviendo = true;
   caminar(a, ruta(a, a.dept, a.seat, true), ()=>{
     a.estado = "sentado"; a.enAsiento = true; a.volviendo = false; a.rotObj = 0;
     a.p.g.position.y = 0.07; a.p.legL.rotation.x = -Math.PI/2; a.p.legR.rotation.x = -Math.PI/2;
-    a.timer = rnd(8,24);
+    a.timer = rnd(90,240);
   });
 }
 function paseo(a){
+  if(fueraDeEscritorio() >= MAX_FUERA){ a.timer = rnd(15,40); return; }
   const r = Math.random();
-  if(r < 0.45) irA(a, "cafe", pick(SPOTS.cafe), rnd(4,9));
-  else if(r < 0.7) irA(a, "reuniones", pick(SPOTS.reuniones), rnd(4,8));
+  if(r < 0.65){
+    const grupos = GRUPOS_CAFE.filter(g=>puestosLibres(g).length);
+    if(grupos.length){
+      const conGente = grupos.filter(g=>g.puestos.some(p=>p.ocupado && p.ocupado.charla));
+      const g = conGente.length && Math.random()<0.6 ? pick(conGente) : pick(grupos);
+      const libres = puestosLibres(g), sp = pick(libres);
+      const presente = g.puestos.find(p=>p.ocupado && p.ocupado.charla);
+      sentarEn(a, sp, presente ? presente.ocupado.charla : null);
+      const resto = libres.filter(p=>p!==sp);
+      if(!presente && resto.length && fueraDeEscritorio() < MAX_FUERA && Math.random()<0.8){
+        const cand = agentes3d.filter(x=>x!==a && x.estado==="sentado" && !x.entregar && !ocupado(x.dept, x.idx));
+        if(cand.length) sentarEn(pick(cand), pick(resto), a.charla);
+      }
+      return;
+    }
+  }
+  if(r < 0.85) irA(a, "reuniones", pick(SPOTS.reuniones), rnd(5,9));
   else {
     const otros = DEPTS.filter(d=>d.id!==a.dept), d = pick(otros), R = ROOMS[d.id], v = pick(R.visita);
-    irA(a, d.id, {x:v.x, z:v.z, mira:[R.aisleX,(R.rows[0]+R.rows[1])/2]}, rnd(3,7));
+    irA(a, d.id, {x:v.x, z:v.z, mira:[R.aisleX,(R.rows[0]+R.rows[1])/2]}, rnd(4,8));
   }
+}
+function actualizarCharlas(dt){
+  const vistas = new Set();
+  agentes3d.forEach(a=>{
+    const c = a.charla; if(!c || vistas.has(c)) return; vistas.add(c);
+    const sentados = c.miembros.filter(x=>x.estado==="sentadoCafe");
+    if(sentados.length<2){ c.miembros.forEach(x=>x.hablando = false); c.hablante = null; return; }
+    c.t -= dt;
+    if(!c.hablante || c.t<=0 || !sentados.includes(c.hablante)){
+      const opciones = sentados.filter(x=>x!==c.hablante);
+      c.hablante = pick(opciones.length ? opciones : sentados); c.t = rnd(1.8,4.2);
+    }
+    c.miembros.forEach(x=>x.hablando = x===c.hablante);
+  });
 }
 function actualizarAgente(a, dt, T){
   const w = ocupado(a.dept, a.idx), p = a.p, pos = p.g.position;
   if(reduceMotion){
-    if(!a.enAsiento){ pos.set(a.seat.x,0.07,a.seat.z); a.enAsiento = true; a.estado = "sentado"; }
+    if(!a.enAsiento){ soltarPuesto(a); pos.set(a.seat.x,0.07,a.seat.z); a.enAsiento = true; a.estado = "sentado"; }
     p.g.rotation.y = 0; p.legL.rotation.x = p.legR.rotation.x = -Math.PI/2;
     p.armL.rotation.x = p.armR.rotation.x = w ? -1.1 : 0;
   } else {
@@ -2885,7 +2944,7 @@ function actualizarAgente(a, dt, T){
         if(en.room){ const R = ROOMS[en.room], v = pick(R.visita); irA(a, en.room, {x:v.x, z:v.z, mira:[R.aisleX,(R.rows[0]+R.rows[1])/2]}, 4); }
         else irA(a, "reuniones", pick(SPOTS.reuniones), 3.5); }
       else if(!w){ a.timer -= dt; if(a.timer<=0) paseo(a); }
-    } else if(a.estado==="parado"){
+    } else if(a.estado==="parado" || a.estado==="sentadoCafe"){
       a.timer -= dt; if(w || a.timer<=0) volver(a);
     } else if(a.estado==="caminando" && w && !a.volviendo){ volver(a); }
     if(a.estado==="caminando" && a.path.length){
@@ -2903,11 +2962,21 @@ function actualizarAgente(a, dt, T){
       p.legL.rotation.x = p.legR.rotation.x = -Math.PI/2;
       if(w){ p.armL.rotation.x = -1.15 + Math.sin(T*16+a.fase)*0.12; p.armR.rotation.x = -1.15 + Math.sin(T*16+a.fase+1.5)*0.12; }
       else { p.armL.rotation.x = -0.9; p.armR.rotation.x = -0.9; }
+    } else if(a.estado==="sentadoCafe"){
+      p.legL.rotation.x = p.legR.rotation.x = -Math.PI/2;
+      if(a.hablando){ p.armR.rotation.x = -0.95 + Math.sin(T*7+a.fase)*0.35; p.armL.rotation.x = -0.45 + Math.sin(T*4.5+a.fase)*0.18; p.g.rotation.y += Math.sin(T*3+a.fase)*0.004; }
+      else { p.armL.rotation.x = -0.45; p.armR.rotation.x = -0.5 + Math.sin(T*1.3+a.fase)*0.05; }
     } else {
       p.legL.rotation.x = p.legR.rotation.x = 0;
       p.armL.rotation.x = Math.sin(T*2+a.fase)*0.15; p.armR.rotation.x = -0.3 + Math.sin(T*3+a.fase)*0.4;
     }
     if(p.estrella) p.estrella.rotation.y += dt*1.5;
+  }
+  if(a.hablando && !a.burbuja){ a.burbuja = document.createElement("div"); a.burbuja.className = "burbuja"; a.burbuja.innerHTML = "<i></i><i></i><i></i>"; labelsEl.appendChild(a.burbuja); }
+  if(a.burbuja){
+    const ver = a.hablando && a.estado==="sentadoCafe";
+    a.burbuja.hidden = !ver;
+    if(ver){ const [x,y] = proyectar(pos.x, 2.35, pos.z); a.burbuja.style.left = x+"px"; a.burbuja.style.top = y+"px"; }
   }
   a.scrMat.emissiveIntensity = w ? 0.55 + Math.sin(T*9+a.fase)*0.25 : (a.enAsiento ? 0.15 : 0.04);
 }
@@ -2948,6 +3017,7 @@ function loop(now){
   const algunoTrabaja = store.tareas.some(t=>t.estado==="trabajando");
   if(!reduceMotion){ brain.rotation.y += dt*(algunoTrabaja?1.2:0.3); brain.position.y = 2.2 + Math.sin(T*1.5)*0.05; }
   brainMat.emissiveIntensity = algunoTrabaja ? 0.7+Math.sin(T*4)*0.3 : 0.45;
+  if(!reduceMotion) actualizarCharlas(dt);
   agentes3d.forEach(a=>{
     actualizarAgente(a, dt, T);
   });
