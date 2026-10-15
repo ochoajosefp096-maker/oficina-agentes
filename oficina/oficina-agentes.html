@@ -1370,6 +1370,16 @@ function resumirAnuncios(items){
   const tam = Object.entries(busquedas).sort((a,b)=>b[1]-a[1]).map(([q,n])=>`"${q}": ${n.toLocaleString("es")} anuncios activos en total`);
   return { total, anunciantes: Object.keys(grupos).length, mas30, mas90, wsp, texto: (tam.length ? `Tamaño de cada búsqueda en la Biblioteca de anuncios (cuántos anuncios activos hay en total, no solo los revisados):\n${tam.join("\n")}\n\n` : "") + lineas.join("\n") };
 }
+const MOTIVOS_RECHAZO = ["Ya lo testeé y no funcionó", "No me interesa ese nicho", "Demasiada competencia", "Difícil de crear o de vender"];
+let prodRechazando = null;
+function memoriaProductos(){
+  const ps = store.productos || [];
+  const rech = ps.filter(p=>p.estado==="rechazado").map(p=>`- ${p.nombre}${p.nicho ? ` (${p.nicho})` : ""}${p.motivo ? ` → motivo: ${p.motivo}` : ""}`);
+  const otros = ps.filter(p=>p.estado!=="rechazado").map(p=>`- ${p.nombre}${p.nicho ? ` (${p.nicho})` : ""} → ${p.estado==="aprobado" ? "ya en prueba" : "ya propuesto, pendiente de revisar"}`);
+  if(!rech.length && !otros.length) return "";
+  return `\n\nPRODUCTOS QUE EL DUEÑO YA CONOCE (NO los vuelvas a proponer, ni el mismo producto con otro nombre):${rech.length ? `\nRechazados por el dueño:\n${rech.slice(0,80).join("\n")}` : ""}${otros.length ? `\nYa propuestos o en prueba:\n${otros.slice(0,80).join("\n")}` : ""}\nTrae productos NUEVOS. Puedes explorar otros subnichos o micronichos del mismo nicho, siempre que sea un producto claramente distinto. Ten en cuenta los motivos de rechazo para no repetir el mismo error (por ejemplo, si ya se testeó y no funcionó, evita productos casi iguales).`;
+}
+const normProd = s => norm(String(s||"")).replace(/[^a-z0-9 ]/g," ").replace(/\b(curso|de|del|la|el|los|las|para|en|y|con|desde|cero|online|virtual|completo)\b/g," ").replace(/\s+/g," ").trim();
 function planInvPrompt(t){
   const v = t.inv, pais = PAISES[v.pais] || "Colombia";
   return `Planea una investigación de mercado para encontrar infoproductos (cursos digitales, guías, plantillas) que el dueño pueda lanzar y vender por WhatsApp en ${pais}.
@@ -1377,7 +1387,7 @@ Contexto del negocio:
 ${store.negocio.trim() || "Vende cursos digitales por WhatsApp en Latinoamérica."}
 
 Pedido del dueño: ${t.texto}
-Tema o nicho: ${v.tema || "abierto, explora varios nichos"}
+Tema o nicho: ${v.tema || "abierto, explora varios nichos"}${memoriaProductos()}
 
 Devuelve SOLO un objeto JSON con dos claves:
 - "consultas": ${v.motor==="perplexity" ? "10 preguntas de búsqueda web, completas y específicas" : "20 búsquedas de Google, cortas (4 a 9 palabras) y específicas, 2 por ángulo"}, en español, que cubran estos ángulos: (1) infoproductos y cursos que más se venden hoy en Hotmart, Kiwify y Eduzz en Latinoamérica; (2) anuncios de cursos online que llevan meses corriendo en Facebook, Instagram y TikTok en ${pais}; (3) nichos evergreen (dinero extra, oficios, belleza, salud y bienestar, relaciones, mascotas, manualidades, cocina, tecnología) y sus subnichos con más demanda; (4) micronichos poco explotados en ${pais}; (5) tendencias de búsqueda en Google Trends, TikTok y YouTube de los últimos 3 meses en ${pais}; (6) oficios y habilidades que la gente quiere aprender para ganar dinero desde casa; (7) quejas, dudas y deseos de la gente en foros, grupos y comentarios; (8) precios de cursos parecidos en pesos de ${pais}; (9) nivel de competencia y saturación; (10) casos de éxito recientes de creadores latinos.${v.tema ? ` Enfoca todas las consultas en el tema "${v.tema}" y sus subnichos.` : ""}
@@ -1436,7 +1446,7 @@ Ordenados del mejor al peor. Para cada uno:
 ## Mi recomendación
 Cuál lanzar primero y por qué, con un plan de 14 días.
 
-Reglas: solo productos que una persona pueda crear o licenciar (cursos grabados, guías, plantillas, retos); nada ilegal, ni promesas de hacerse rico, ni curas milagrosas. Cita las fuentes con su enlace cuando las tengas. Si un dato es estimado, dilo. No uses tablas. Termina con una línea "Siguiente paso:" con una sugerencia breve.`;
+${memoriaProductos() ? memoriaProductos().trim() + "\n\n" : ""}Reglas: solo productos que una persona pueda crear o licenciar (cursos grabados, guías, plantillas, retos); nada ilegal, ni promesas de hacerse rico, ni curas milagrosas. Cita las fuentes con su enlace cuando las tengas. Si un dato es estimado, dilo. No uses tablas. Termina con una línea "Siguiente paso:" con una sugerencia breve.`;
 }
 async function investigar(t, opts){
   const signal = opts.signal;
@@ -1921,9 +1931,14 @@ async function extraerProductos(t){
   try{
     const lista = await sample.json(`Del siguiente informe de investigación, extrae cada infoproducto del ranking recomendado para lanzar. Devuelve SOLO un arreglo JSON, un objeto por producto y en el mismo orden del informe, con estas claves exactas: "nombre" (nombre comercial del curso), "nicho" (nicho › subnicho › micronicho), "puntaje" (número de 0 a 100), "queEnsena" (los módulos en una o dos frases), "publico", "dolor", "promesa", "precio" (precio sugerido con la oferta), "evidencia" (2 o 3 frases con los anuncios, días activos y fuentes que lo respaldan), "competencia", "whatsapp" (por qué se vende bien por WhatsApp), "hooks" (arreglo de textos), "validacion" (cómo validarlo en 7 días), "riesgos". Copia los datos del informe sin inventar. Si un dato no aparece, usa "".\n\nINFORME:\n${String(t.resultado || "").slice(0, 60000)}`, { modelTier:"default", cache:false });
     const S = (x, k, n) => typeof x[k]==="string" ? x[k].trim().slice(0, n || 600) : "";
-    const arr = (Array.isArray(lista) ? lista : (lista && Array.isArray(lista.productos) ? lista.productos : [])).filter(x=>x && typeof x==="object" && S(x,"nombre"));
+    let arr = (Array.isArray(lista) ? lista : (lista && Array.isArray(lista.productos) ? lista.productos : [])).filter(x=>x && typeof x==="object" && S(x,"nombre"));
     if(!arr.length) throw new Error("vacío");
     store.productos = store.productos || [];
+    const vetados = new Set(store.productos.map(p=>normProd(p.nombre)).filter(Boolean));
+    const descartados = arr.filter(x=>vetados.has(normProd(S(x,"nombre",120)))).length;
+    arr = arr.filter(x=>!vetados.has(normProd(S(x,"nombre",120))));
+    if(!arr.length) throw new Error("solo repetidos");
+    t.productosDescartados = descartados;
     arr.slice(0, 20).forEach((x,i)=>store.productos.unshift({ id: nid(), nombre: S(x,"nombre",120), nicho: S(x,"nicho",200), puntaje: Math.max(0, Math.min(100, Math.round(Number(x.puntaje) || 0))), queEnsena: S(x,"queEnsena"), publico: S(x,"publico",300), dolor: S(x,"dolor",300), promesa: S(x,"promesa",300), precio: S(x,"precio",200), evidencia: S(x,"evidencia",900), competencia: S(x,"competencia",300), whatsapp: S(x,"whatsapp",300), hooks: (Array.isArray(x.hooks) ? x.hooks : []).map(h=>String(h).slice(0,200)).slice(0,5), validacion: S(x,"validacion"), riesgos: S(x,"riesgos",400), estado:"pendiente", invId: t.id, pais: (t.inv && t.inv.pais) || "CO", creada: Date.now() - i }));
     t.productos = { estado:"listo", n: Math.min(arr.length, 20) };
     avisoProductos(t.productos.n);
@@ -1948,8 +1963,10 @@ function tarjetaProducto(p){
     <div class="t">${esc(p.nombre)}${p.puntaje ? ` — ${p.puntaje}/100` : ""}</div>
     ${p.nicho ? `<div class="m">${esc(p.nicho)}</div>` : ""}
     <span class="pill ${p.estado==="aprobado" ? "lista" : p.estado==="rechazado" ? "" : "trabajando"}">${EST_PROD[p.estado] || ""}</span>
+    ${p.estado==="rechazado" && p.motivo ? `<div class="brief-box" style="margin:8px 0 0"><b>Motivo del rechazo:</b> ${esc(p.motivo)}</div>` : ""}
     <div class="ficha-v" style="margin-top:8px">${fila("Promesa", p.promesa)}${fila("Qué enseña", p.queEnsena)}${fila("Para quién", p.publico)}${fila("Dolor", p.dolor)}${fila("Precio sugerido", p.precio)}${fila("Evidencia", p.evidencia)}${fila("Competencia", p.competencia)}${fila("Por WhatsApp", p.whatsapp)}${p.hooks && p.hooks.length ? `<div><b>Hooks:</b> ${p.hooks.map(h=>esc(h)).join(" · ")}</div>` : ""}${fila("Validación en 7 días", p.validacion)}${fila("Riesgos", p.riesgos)}</div>
     ${p.estado==="pendiente" ? `<div class="opts" style="margin-top:8px"><label>Días a planear</label><input type="number" min="1" max="30" value="7" data-pdias="${p.id}" style="width:64px;border:1.5px solid var(--line);border-radius:8px;padding:4px 6px;background:var(--panel-2)"><label>Reels por día</label><input type="number" min="1" max="5" value="1" data-pdia="${p.id}" style="width:56px;border:1.5px solid var(--line);border-radius:8px;padding:4px 6px;background:var(--panel-2)"></div>` : ""}
+    ${prodRechazando===p.id ? `<div class="vaciar-bar" style="margin:10px 0 0">¿Por qué lo rechazas? El Investigador lo tendrá en cuenta y no te lo volverá a traer.<div class="chain" style="margin:8px 0 0">${MOTIVOS_RECHAZO.map(m=>`<button data-pmot="${esc(m)}">${esc(m)}</button>`).join("")}</div><textarea class="txt" data-pmotivo="${p.id}" style="min-height:54px" placeholder="Escribe el motivo. Ej: ya lo testeé con 50 mil pesos y nadie escribió al WhatsApp"></textarea><div class="acc"><button class="no" data-pcancel>Cancelar</button><button class="si" data-pconf="${p.id}">Rechazar</button></div></div>` : ""}
     <div class="r-acc">${p.estado==="pendiente" ? `<button class="ok" data-papr="${p.id}">Aprobar y enviar al estratega</button><button data-prech="${p.id}">Rechazar</button>` : ""}${p.estado==="rechazado" ? `<button data-prest="${p.id}">Restaurar</button>` : ""}${tarea ? `<button data-pver="${tarea.id}">Ver tarea del estratega</button>` : ""}${inv ? `<button data-pver="${inv.id}">Ver informe</button>` : ""}<button class="del" data-pdel="${p.id}">Borrar</button></div>
   </div>`;
 }
@@ -2008,7 +2025,7 @@ function pintarDetalle(){
   if(t.drive && t.drive.estado==="error") body += `<p class="drv-err">${esc(t.drive.error)}</p>`;
   if(t.estado==="lista") body += imagenesHTML(t);
   if(t.producto) body += `<div class="brief-box"><b>Producto:</b> ${esc(t.producto.nombre)}${t.producto.descripcion ? `<br><b>Qué enseña:</b> ${esc(t.producto.descripcion)}` : ""}${t.producto.fotos && t.producto.fotos.length ? `<div class="prod-fotos">${t.producto.fotos.map(id=>`<img src="/_blob/${esc(id)}" alt="Foto del producto">`).join("")}</div>` : ""}</div>`;
-  if(esInvestigador(t.dept, t.agente) && t.estado==="lista") body += `<div class="brief-box">${!t.productos ? `<button data-pextraer="${t.id}">Pasar estos productos a Productos</button>` : t.productos.estado==="pasando" ? "Pasando los productos a la sección Productos…" : t.productos.estado==="listo" ? `Se pasaron <b>${t.productos.n} productos</b> a la sección Productos para que los apruebes. <button data-pabrir>Abrir Productos</button>` : `No se pudieron pasar los productos. <button data-pextraer="${t.id}">Intentar de nuevo</button>`}</div>`;
+  if(esInvestigador(t.dept, t.agente) && t.estado==="lista") body += `<div class="brief-box">${!t.productos ? `<button data-pextraer="${t.id}">Pasar estos productos a Productos</button>` : t.productos.estado==="pasando" ? "Pasando los productos a la sección Productos…" : t.productos.estado==="listo" ? `Se pasaron <b>${t.productos.n} productos</b> a la sección Productos para que los apruebes${t.productosDescartados ? ` (se descartaron ${t.productosDescartados} que ya conocías o habías rechazado)` : ""}. <button data-pabrir>Abrir Productos</button>` : `No se pudieron pasar los productos. <button data-pextraer="${t.id}">Intentar de nuevo</button>`}</div>`;
   if(t.plan && t.estado==="lista") body += `<div class="brief-box">${!t.calendario || t.calendario.estado==="pasando" ? "Pasando el plan al calendario…" : t.calendario.estado==="listo" ? `Se pasaron <b>${t.calendario.n} reels</b> al calendario, desde el ${esc(fechaLarga(t.calendario.desde))}${calCfg().aprobacion!==false ? ". Están esperando tu aprobación" : ""}. <button data-vercal="${esc(t.calendario.desde)}">Abrir calendario</button>` : `No se pudo pasar el plan al calendario. <button data-recal="${t.id}">Intentar de nuevo</button>`}</div>`;
   if(t.inv) body += invHTML(t);
   if(t.brief) body += `<div class="brief-box">` + Object.entries(BRIEF_ETQ).filter(([k])=>t.brief[k]).map(([k,l])=>`<b>${esc(l)}:</b> ${esc(t.brief[k])}`).join("<br>") + `</div>`;
@@ -2074,8 +2091,11 @@ $("prodLista").addEventListener("click", e=>{
   const g = s => e.target.closest(s), byId = id => (store.productos || []).find(x=>x.id===id);
   let b;
   if((b = g("[data-papr]"))){ const p = byId(b.dataset.papr); if(!p) return; const dias = Math.min(30, Math.max(1, Number(($("prodLista").querySelector(`[data-pdias=\"${p.id}\"]`)||{}).value) || 7)), porDia = Math.min(5, Math.max(1, Number(($("prodLista").querySelector(`[data-pdia=\"${p.id}\"]`)||{}).value) || 1)); aprobarProducto(p, dias, porDia); return; }
-  if((b = g("[data-prech]"))){ const p = byId(b.dataset.prech); if(p){ p.estado = "rechazado"; save(); renderProductos(); renderAll(); } return; }
-  if((b = g("[data-prest]"))){ const p = byId(b.dataset.prest); if(p){ p.estado = "pendiente"; save(); renderProductos(); renderAll(); } return; }
+  if((b = g("[data-prech]"))){ prodRechazando = b.dataset.prech; renderProductos(); const ta = $("prodLista").querySelector(`[data-pmotivo="${prodRechazando}"]`); if(ta) ta.focus(); return; }
+  if((b = g("[data-pmot]"))){ const ta = $("prodLista").querySelector(`[data-pmotivo="${prodRechazando}"]`); if(ta){ ta.value = b.dataset.pmot + (ta.value.trim() ? ". " + ta.value.trim() : ""); ta.focus(); } return; }
+  if(g("[data-pcancel]")){ prodRechazando = null; renderProductos(); return; }
+  if((b = g("[data-pconf]"))){ const p = byId(b.dataset.pconf); if(p){ const ta = $("prodLista").querySelector(`[data-pmotivo="${p.id}"]`); p.estado = "rechazado"; p.motivo = (ta && ta.value.trim()) || "Sin motivo"; p.rechazado = Date.now(); prodRechazando = null; save(); renderProductos(); renderAll(); } return; }
+  if((b = g("[data-prest]"))){ const p = byId(b.dataset.prest); if(p){ p.estado = "pendiente"; delete p.motivo; save(); renderProductos(); renderAll(); } return; }
   if((b = g("[data-pdel]"))){ store.productos = (store.productos || []).filter(x=>x.id!==b.dataset.pdel); save(); renderProductos(); renderAll(); return; }
   if((b = g("[data-pver]"))){ $("prodDlg").classList.remove("open"); abrir(b.dataset.pver); return; }
 });
