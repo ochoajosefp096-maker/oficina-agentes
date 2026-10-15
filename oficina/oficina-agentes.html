@@ -2694,7 +2694,7 @@ function initEscena(){
       const p = persona(LOOKS[d.id][ai], ai===0);
       const seat = {x, z:z-0.62};
       p.g.position.set(seat.x, 0.07, seat.z); p.g.rotation.y = 0;
-      agentes3d.push({ dept:d.id, idx:ai, p, seat, scrMat, room:d.id, estado:"sentado", enAsiento:true, path:[], timer:rnd(30,150), rotObj:0, fase:Math.random()*6, entregar:false });
+      agentes3d.push({ dept:d.id, idx:ai, p, seat, scrMat, room:d.id, estado:"sentado", enAsiento:true, path:[], timer:rnd(5,45), rotObj:0, fase:Math.random()*6, entregar:false });
     });
     ({ ventas:propsVentas, marketing:propsMarketing, correos:propsCorreos, audiovisual:propsAudiovisual })[d.id](R, hex);
   });
@@ -2858,7 +2858,7 @@ function caminar(a, path, alLlegar){
   a.enAsiento = false;
 }
 /* Paseos: pocos a la vez y con charlas sentados en la cafetería */
-const MAX_FUERA = 3;
+const MAX_FUERA = 8;
 const GRUPOS_CAFE = [
   { puestos:[ {x:-3.75,z:2.2,mira:[-3.2,3.0],sentar:0.07,via:[-1.0,2.7]}, {x:-2.65,z:2.2,mira:[-3.2,3.0],sentar:0.07,via:[-1.0,2.7]}, {x:-4.35,z:3.95,mira:[-3.2,3.0],sentar:0.03,via:[-1.0,4.2]}, {x:-2.05,z:3.95,mira:[-3.2,3.0],sentar:0.03,via:[-1.0,4.2]} ] },
   { puestos:[ {x:-4.5,z:7.65,mira:[-3.5,7.65],sentar:0.36,via:[-1.0,7.1]}, {x:-3.5,z:7.65,mira:[-4.5,7.65],sentar:0.36,via:[-1.0,7.1]}, {x:-2.5,z:7.65,mira:[-1.5,7.65],sentar:0.36,via:[-1.0,7.1]}, {x:-1.5,z:7.65,mira:[-2.5,7.65],sentar:0.36,via:[-1.0,7.1]} ] },
@@ -2890,11 +2890,11 @@ function volver(a){
   caminar(a, ruta(a, a.dept, a.seat, true), ()=>{
     a.estado = "sentado"; a.enAsiento = true; a.volviendo = false; a.rotObj = 0;
     a.p.g.position.y = 0.07; a.p.legL.rotation.x = -Math.PI/2; a.p.legR.rotation.x = -Math.PI/2;
-    a.timer = rnd(90,240);
+    a.timer = rnd(35,45);
   });
 }
 function paseo(a){
-  if(fueraDeEscritorio() >= MAX_FUERA){ a.timer = rnd(15,40); return; }
+  if(fueraDeEscritorio() >= MAX_FUERA){ a.timer = rnd(10,20); return; }
   const r = Math.random();
   if(r < 0.65){
     const grupos = GRUPOS_CAFE.filter(g=>puestosLibres(g).length);
