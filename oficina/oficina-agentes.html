@@ -454,7 +454,7 @@ select{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:10px;padd
           <label>Notas extra<textarea data-p="notas" style="min-height:54px" placeholder="Opcional. Ej: estilo UGC sutil, no mencionar el precio en los guiones"></textarea></label>
         </div>
         <div class="brief" id="inv" hidden>
-          <div class="brief-h">Ficha de la investigación <span>Apify revisa los anuncios activos en la Biblioteca de anuncios de Meta y busca en Google (o Perplexity, si lo eliges). Tarda entre 5 y 20 minutos; deja la oficina abierta.</span></div>
+          <div class="brief-h">Ficha de la investigación <span>Primero descubre: anuncios activos de Meta (aquí y en otros países), Google y páginas. Luego valida cada candidato: sus anuncios, la competencia, Google, TikTok y YouTube. Tarda entre 15 y 35 minutos; deja la oficina abierta.</span></div>
           <label>Tema o nicho<input class="txt" data-i="tema" placeholder="Opcional. Ej: manualidades, belleza, oficios, dinero extra. Vacío: busca en todos los nichos"></label>
           <div class="brief-grid">
             <label>País<select data-i="pais"><option value="CO">Colombia</option><option value="MX">México</option><option value="PE">Perú</option><option value="EC">Ecuador</option><option value="CL">Chile</option><option value="AR">Argentina</option></select></label>
@@ -463,6 +463,8 @@ select{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:10px;padd
             <label>Profundidad con Perplexity<select data-i="preset"><option value="pro-search">Buena (≈ 0,05 USD por búsqueda)</option><option value="deep-research">Profunda (más lenta y cara)</option></select></label>
             <label>Productos a entregar<select data-i="cuantos"><option>5</option><option selected>7</option><option>10</option></select></label>
           </div>
+          <label>Buscar ganadores también en<span class="sub">Revisa anuncios de esos países para encontrar productos que funcionan allá y todavía no hay aquí.</span></label>
+          <div class="chain" id="invOtros" style="margin:6px 0 0"></div>
           <label>Lo que tú ya viste<textarea data-i="notas" style="min-height:54px" placeholder="Opcional. Pega aquí lo que viste en Hotmart, TikTok o anuncios de la competencia. El investigador lo usa como una fuente más."></textarea></label>
         </div>
         <div class="ideas" id="ideas"></div>
@@ -1210,7 +1212,7 @@ const ESC_INV = { per: 6637964, pedir: 6638459, traer: 6638480 };
 function invCfg(){ if(!store.invCfg) store.invCfg = {}; return store.invCfg; }
 const escInv = k => Number(invCfg()[k]) || ESC_INV[k];
 const esInvestigador = (dept, ag) => dept==="marketing" && String(ag)==="0";
-const INV_DEF = { tema:"", pais:"CO", anuncios:"1000", motor:"apify", preset:"pro-search", cuantos:"7", notas:"" };
+const INV_DEF = { tema:"", pais:"CO", anuncios:"1000", motor:"apify", preset:"pro-search", cuantos:"7", notas:"", otros:"MX,BR" };
 const PAISES = { CO:"Colombia", MX:"México", PE:"Perú", EC:"Ecuador", CL:"Chile", AR:"Argentina" };
 const limpiarConsulta = s => String(s||"").replace(/[\u0000-\u001f]+/g," ").replace(/\|/g,"/").replace(/\s+/g," ").trim().slice(0,700);
 const abortado = signal => { if(signal && signal.aborted) throw { code:"aborted" }; };
@@ -1264,8 +1266,9 @@ async function correrPerplexity(t, consultas, signal){
   return { texto, url: f.viewUrl };
 }
 const urlBiblioteca = (q, pais) => `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=${pais}&q=${encodeURIComponent(q)}&search_type=keyword_unordered&media_type=all`;
-const ACTORES = { anuncios:"curious_coder~facebook-ads-library-scraper", google:"apify~google-search-scraper", paginas:"apify~website-content-crawler" };
-const CAMPOS_ANUNCIOS = "page_name,start_date,end_date,collation_count,total,url,snapshot.body.text,snapshot.title,snapshot.link_url,snapshot.cta_text,snapshot.link_description,snapshot.page_like_count";
+const ACTORES = { anuncios:"curious_coder~facebook-ads-library-scraper", google:"apify~google-search-scraper", paginas:"apify~website-content-crawler", tiktok:"clockworks~tiktok-scraper", youtube:"streamers~youtube-scraper" };
+const urlPagina = (id, pais) => `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=${pais || "CO"}&view_all_page_id=${id}&search_type=page&media_type=all`;
+const CAMPOS_ANUNCIOS = "page_name,page_id,start_date,end_date,collation_count,total,url,snapshot.body.text,snapshot.title,snapshot.link_url,snapshot.cta_text,snapshot.link_description,snapshot.page_like_count";
 async function correrActor(t, clave, actor, entrada, o, signal){
   // o: { tope, limite, campos, aplanar, maxMin, texto(min) }
   const nombre = `inv-${t.id}-${clave}`;
@@ -1301,12 +1304,19 @@ async function correrActor(t, clave, actor, entrada, o, signal){
 async function correrAnuncios(t, palabras, signal){
   const total = Number(t.inv.anuncios) || 0;
   if(!total || !palabras.length){ invPaso(t, "ads", "Sin revisión de anuncios"); return null; }
-  invPaso(t, "ads", `Pidiendo ${total} anuncios a Apify…`);
-  const entrada = { urls: palabras.map(q=>({ url: urlBiblioteca(q, t.inv.pais || "CO") })), count: total, limitPerSource: Math.ceil(total/palabras.length), scrapeAdDetails: false, "scrapePageAds.activeStatus": "active" };
-  const r = await correrActor(t, "anuncios", ACTORES.anuncios, entrada, { tope: total/1000*1.5 + 0.3, limite: total + 50, campos: CAMPOS_ANUNCIOS, aplanar: "snapshot", maxMin: 30, avance: m=>invPaso(t, "ads", `Apify está revisando los anuncios… ${m} min`) }, signal);
-  const res = resumirAnuncios(r.items, palabras);
-  invPaso(t, "ads", `Listo: ${res.total} anuncios de ${res.anunciantes} anunciantes`);
-  return { ...res, url: r.url };
+  const pais = t.inv.pais || "CO", otros = otrosPaises(t);
+  const porFuente = Math.ceil(total * (otros.length ? 0.7 : 1) / palabras.length);
+  const urls = palabras.map(q=>({ url: urlBiblioteca(q, pais) }));
+  otros.forEach(c=>{ const kws = c==="BR" ? (t.inv.palabrasPt || []).slice(0,2) : palabras.slice(0,2); kws.forEach(q=>urls.push({ url: urlBiblioteca(q, c) })); });
+  const pedidos = urls.length * porFuente;
+  invPaso(t, "ads", `Pidiendo ~${pedidos} anuncios a Apify (${[pais, ...otros].map(nombrePais).join(", ")})…`);
+  const entrada = { urls, count: pedidos, limitPerSource: porFuente, scrapeAdDetails: false, "scrapePageAds.activeStatus": "active" };
+  const r = await correrActor(t, "anuncios", ACTORES.anuncios, entrada, { tope: pedidos/1000*1.5 + 0.3, limite: pedidos + 50, campos: CAMPOS_ANUNCIOS, aplanar: "snapshot", maxMin: 30, avance: m=>invPaso(t, "ads", `Apify está revisando los anuncios… ${m} min`) }, signal);
+  const delPais = r.items.filter(a=>{ const c = paisDeUrl(campo(a, "url")); return !c || c===pais; });
+  const res = resumirAnuncios(delPais);
+  const otrosTexto = otros.map(c=>{ const its = r.items.filter(a=>paisDeUrl(campo(a, "url"))===c); if(!its.length) return ""; const rr = resumirAnuncios(its); return `### ${nombrePais(c)}: ${rr.total} anuncios de ${rr.anunciantes} anunciantes (${rr.mas30} con más de 30 días)\n${rr.texto.split("\n").slice(0, 45).join("\n")}`; }).filter(Boolean).join("\n\n");
+  invPaso(t, "ads", `Listo: ${res.total} anuncios de ${res.anunciantes} anunciantes en ${nombrePais(pais)}${otros.length ? ` y ${r.items.length - delPais.length} de otros países` : ""}`);
+  return { ...res, otrosTexto, url: r.url };
 }
 const REDES = /(^|\.)(facebook|instagram|tiktok|youtube|youtu|x|twitter|pinterest|linkedin)\.com$|youtu\.be$/i;
 async function correrWebApify(t, consultas, signal){
@@ -1358,7 +1368,8 @@ function resumirAnuncios(items){
     const copias = Math.max(1, Number(campo(a, "collation_count")) || 1);
     const esWsp = /wa\.me|whatsapp/i.test(link + " " + cta);
     if(dias>=30) mas30++; if(dias>=90) mas90++; if(esWsp) wsp++;
-    const g = grupos[pagina] || (grupos[pagina] = { pagina, anuncios:0, copias:0, maxDias:0, sumaDias:0, wsp:0, textos:[], titulos:new Set(), dominios:new Set(), ctas:new Set() });
+    const g = grupos[pagina] || (grupos[pagina] = { pagina, pageId: String(campo(a, "page_id") || ""), anuncios:0, copias:0, maxDias:0, sumaDias:0, wsp:0, textos:[], titulos:new Set(), dominios:new Set(), ctas:new Set(), links:new Set() });
+    if(link && g.links.size<3) g.links.add(link);
     g.anuncios++; g.copias += copias; g.maxDias = Math.max(g.maxDias, dias); g.sumaDias += dias; if(esWsp) g.wsp++;
     if(titulo) g.titulos.add(titulo.slice(0,90));
     if(cta) g.ctas.add(cta);
@@ -1368,7 +1379,107 @@ function resumirAnuncios(items){
   const lista = Object.values(grupos).map(g=>({ ...g, puntaje: g.maxDias * Math.log2(1 + g.copias) })).sort((a,b)=>b.puntaje-a.puntaje).slice(0,40);
   const lineas = lista.map((g,i)=>`${i+1}. ${g.pagina} | ${g.anuncios} anuncios activos (${g.copias} con duplicados) | el más antiguo lleva ${g.maxDias} días | promedio ${Math.round(g.sumaDias/g.anuncios)} días${g.wsp ? ` | ${g.wsp} llevan a WhatsApp` : ""}${g.dominios.size ? ` | destino: ${[...g.dominios].slice(0,3).join(", ")}` : ""}${g.ctas.size ? ` | botón: ${[...g.ctas].slice(0,2).join(", ")}` : ""}${g.titulos.size ? `\n   Títulos: ${[...g.titulos].slice(0,3).join(" / ")}` : ""}${g.textos.map(x=>`\n   Texto (${x.dias} días): ${x.texto}`).join("")}`);
   const tam = Object.entries(busquedas).sort((a,b)=>b[1]-a[1]).map(([q,n])=>`"${q}": ${n.toLocaleString("es")} anuncios activos en total`);
-  return { total, anunciantes: Object.keys(grupos).length, mas30, mas90, wsp, texto: (tam.length ? `Tamaño de cada búsqueda en la Biblioteca de anuncios (cuántos anuncios activos hay en total, no solo los revisados):\n${tam.join("\n")}\n\n` : "") + lineas.join("\n") };
+  const top = lista.slice(0, 10).map(g=>({ pagina: g.pagina, pageId: g.pageId, links: [...g.links], maxDias: g.maxDias, anuncios: g.anuncios }));
+  return { top, total, anunciantes: Object.keys(grupos).length, mas30, mas90, wsp, texto: (tam.length ? `Tamaño de cada búsqueda en la Biblioteca de anuncios (cuántos anuncios activos hay en total, no solo los revisados):\n${tam.join("\n")}\n\n` : "") + lineas.join("\n") };
+}
+/* ---------- Fase 2: validar candidatos, anunciantes a fondo, TikTok, YouTube y otros países ---------- */
+const CAMPOS_TIKTOK = "text,createTimeISO,playCount,diggCount,shareCount,commentCount,collectCount,webVideoUrl,searchQuery,authorMeta.name,authorMeta.fans";
+const CAMPOS_YOUTUBE = "title,viewCount,date,likes,channelName,numberOfSubscribers,url,input,commentsCount";
+const PAISES_OTROS = { MX:"México", AR:"Argentina", BR:"Brasil", CL:"Chile", PE:"Perú", ES:"España", CO:"Colombia" };
+const nombrePais = c => PAISES[c] || PAISES_OTROS[c] || c;
+const fmtN = n => Number(n||0).toLocaleString("es-CO");
+const qDeUrl = u => { try{ return new URL(String(u)).searchParams.get("q") || ""; }catch(e){ return ""; } };
+const paisDeUrl = u => { try{ return new URL(String(u)).searchParams.get("country") || ""; }catch(e){ return ""; } };
+const diasDesde = v => { const ms = typeof v==="number" ? (v>1e12 ? v : v*1000) : Date.parse(v); return ms ? Math.max(0, Math.round((Date.now()-ms)/864e5)) : null; };
+function otrosPaises(t){ return String(t.inv.otros || "").split(",").map(x=>x.trim()).filter(c=>c && c!==(t.inv.pais||"CO") && PAISES_OTROS[c]); }
+async function elegirCandidatos(t, per, ads, signal){
+  const v = t.inv, pais = nombrePais(v.pais || "CO"), n = Math.min(10, (Number(v.cuantos) || 7) + 3);
+  const lista = await sample.json(`Eres un investigador de infoproductos. Con estas fuentes de una primera búsqueda, elige los ${n} candidatos más prometedores para vender por WhatsApp en ${pais}. Deben ser productos concretos (un curso, una guía o un reto sobre algo específico), no temas generales.${memoriaProductos()}
+
+A) INTERNET:
+${per ? String(per.texto).slice(0, 35000) : "No disponible."}
+
+B) ANUNCIOS ACTIVOS EN ${pais.toUpperCase()}:
+${ads ? ads.texto.slice(0, 20000) : "No disponible."}
+${ads && ads.otrosTexto ? `\nC) ANUNCIOS ACTIVOS EN OTROS PAÍSES (busca también productos que funcionan allá y todavía no hay en ${pais}):\n${ads.otrosTexto.slice(0, 12000)}` : ""}
+
+Devuelve SOLO un arreglo JSON con ${n} objetos y estas claves exactas: "nombre" (nombre del producto), "nicho" (nicho › subnicho), "anuncio" (2 a 4 palabras para buscar ese producto en la Biblioteca de anuncios de Meta, en español, como lo escribiría un anunciante), "video" (frase de 2 a 5 palabras para buscar videos de ese tema en TikTok y YouTube), "google" (búsqueda de Google de 4 a 9 palabras para validar demanda y precios en ${pais}), "origen" ("${pais}" o el país donde lo viste funcionar).`, { modelTier:"default", cache:false, signal });
+  const S = (x,k,m) => limpiarConsulta(typeof x[k]==="string" ? x[k] : "").slice(0, m || 120);
+  return (Array.isArray(lista) ? lista : (lista && Array.isArray(lista.candidatos) ? lista.candidatos : [])).filter(x=>x && typeof x==="object" && S(x,"nombre")).slice(0, n).map(x=>({ nombre:S(x,"nombre"), nicho:S(x,"nicho",160), anuncio:S(x,"anuncio",60) || S(x,"nombre",60), video:S(x,"video",80) || S(x,"nombre",80), google:S(x,"google",140) || S(x,"nombre"), origen:S(x,"origen",40) }));
+}
+async function validarAnuncios(t, cands, ads, signal){
+  const pais = t.inv.pais || "CO";
+  const paginas = (ads && ads.top || []).filter(g=>g.pageId).slice(0, 6);
+  const dias = a => { const ini = Number(campo(a, "start_date")) || 0; return ini ? Math.round((Date.now()/1000 - ini)/86400) : 0; };
+  const [rk, rp] = await Promise.all([
+    cands.length ? correrActor(t, "validacion", ACTORES.anuncios, { urls: cands.map(c=>({ url: urlBiblioteca(c.anuncio, pais) })), count: cands.length*15, limitPerSource: 15, scrapeAdDetails: false, "scrapePageAds.activeStatus": "active" }, { tope: 0.5, limite: cands.length*15 + 20, campos: CAMPOS_ANUNCIOS, aplanar: "snapshot", espera: 30000, maxMin: 20, avance: m=>invPaso(t, "val", `Validando candidatos en la Biblioteca de anuncios… ${m} min`) }, signal) : null,
+    paginas.length ? correrActor(t, "anunciantes", ACTORES.anuncios, { urls: paginas.map(g=>({ url: urlPagina(g.pageId, pais) })), count: paginas.length*5, limitPerSource: 5, scrapeAdDetails: false, "scrapePageAds.activeStatus": "active" }, { tope: 0.5, limite: paginas.length*5 + 10, campos: "page_name,page_id,total,url,start_date", espera: 30000, maxMin: 15 }, signal).catch(e=>{ if(e && e.code==="aborted") throw e; return null; }) : null
+  ]);
+  const porQ = {}, porPagina = {};
+  (rk && rk.items || []).forEach(a=>{
+    const q = qDeUrl(campo(a, "url")); if(!q) return;
+    const pg = String(campo(a, "page_name") || "Sin nombre"), d = dias(a);
+    const x = porQ[q] || (porQ[q] = { total: Number(campo(a, "total")) || 0, vistos: 0, mas30: 0, anunciantes: {} });
+    x.vistos++; if(d>=30) x.mas30++;
+    const an = x.anunciantes[pg] || (x.anunciantes[pg] = { n:0, maxDias:0 }); an.n++; an.maxDias = Math.max(an.maxDias, d);
+  });
+  (rp && rp.items || []).forEach(a=>{ const pid = String(campo(a, "page_id") || (String(campo(a, "url")).match(/view_all_page_id=(\d+)/) || [])[1] || ""); if(!pid) return; const x = porPagina[pid] || (porPagina[pid] = { total: Number(campo(a, "total")) || 0, maxDias: 0 }); x.maxDias = Math.max(x.maxDias, dias(a)); });
+  const lineas = cands.map(c=>{
+    const x = porQ[c.anuncio];
+    if(!x) return `- ${c.nombre} (búsqueda "${c.anuncio}"): ${rk ? `sin anuncios activos encontrados en ${nombrePais(pais)}` : "no se pudo revisar"}.`;
+    const top = Object.entries(x.anunciantes).sort((a,b)=>b[1].maxDias-a[1].maxDias).slice(0,3).map(([p,v])=>`${p} (${v.n} anuncios, el más antiguo ${v.maxDias} días)`).join("; ");
+    return `- ${c.nombre} (búsqueda "${c.anuncio}"): ${fmtN(x.total)} anuncios activos en total en ${nombrePais(pais)}; de ${x.vistos} revisados, ${x.mas30} llevan más de 30 días. Anunciantes más fuertes: ${top || "ninguno"}.`;
+  });
+  const lineasPag = paginas.map(g=>{ const x = porPagina[g.pageId]; return `- ${g.pagina}: ${x ? `${fmtN(x.total)} anuncios activos en total en ${nombrePais(pais)} (el más antiguo de los revisados lleva ${x.maxDias} días)` : "no se pudo contar"}.`; });
+  return { texto: lineas.join("\n"), paginas: lineasPag.join("\n"), url: rk && rk.url };
+}
+async function validarGoogle(t, cands, signal){
+  const qs2 = cands.map(c=>c.google).filter(Boolean);
+  if(!qs2.length) return null;
+  const g = await correrActor(t, "google2", ACTORES.google, { queries: qs2.join("\n"), resultsPerPage: 6, maxPagesPerQuery: 1, countryCode: (t.inv.pais || "CO").toLowerCase(), languageCode: "es" }, { tope: 0.5, limite: 60, espera: 20000, maxMin: 12 }, signal);
+  return g.items.map(it=>`### ${campo(it, "searchQuery.term")}\n` + (campo(it, "organicResults") || []).slice(0,5).map(r=>`- ${campo(r,"title")} — ${campo(r,"url")}\n  ${String(campo(r,"description")).slice(0,220)}`).join("\n")).join("\n\n");
+}
+async function leerLandings(t, ads, signal){
+  const links = [];
+  (ads && ads.top || []).forEach(g=>(g.links || []).forEach(u=>{ let h = ""; try{ h = new URL(u).hostname.replace(/^www\./,""); }catch(e){ return; } if(REDES.test(h) || /wa\.me|whatsapp|fb\.me|bit\.ly|linktr\.ee/i.test(h) || links.some(x=>x.h===h)) return; links.push({ h, u, p: g.pagina }); }));
+  const elegidas = links.slice(0, 8);
+  if(!elegidas.length) return null;
+  const r = await correrActor(t, "landings", ACTORES.paginas, { startUrls: elegidas.map(x=>({ url: x.u })), crawlerType: "cheerio", maxCrawlDepth: 0, maxCrawlPages: elegidas.length, removeCookieWarnings: true }, { tope: 0.5, limite: elegidas.length + 4, campos: "url,text,metadata", espera: 25000, maxMin: 12 }, signal);
+  return r.items.map(x=>{ const u = String(campo(x,"url")); const e = elegidas.find(y=>u.includes(y.h)); return `### ${e ? e.p : "Anunciante"} — ${u}\n${String(campo(x,"text")).replace(/\s+\n/g,"\n").replace(/\n{3,}/g,"\n\n").slice(0, 2500)}`; }).join("\n\n");
+}
+function resumirVideos(items, campoQ, campoVistas, campoFecha, campoTitulo, campoAutor){
+  const porQ = {};
+  items.forEach(v=>{ const q = String(campo(v, campoQ) || ""); if(!q) return; (porQ[q] = porQ[q] || []).push(v); });
+  return Object.entries(porQ).map(([q, vs])=>{
+    const vistas = vs.map(v=>Number(campo(v, campoVistas)) || 0), suma = vistas.reduce((a,b)=>a+b,0);
+    const recientes = vs.filter(v=>{ const d = diasDesde(campo(v, campoFecha)); return d!=null && d<=90; }).length;
+    const top = [...vs].sort((a,b)=>(Number(campo(b,campoVistas))||0)-(Number(campo(a,campoVistas))||0)).slice(0,2).map(v=>`"${String(campo(v,campoTitulo)).replace(/\s+/g," ").slice(0,90)}" (${fmtN(campo(v,campoVistas))} vistas, hace ${diasDesde(campo(v,campoFecha)) ?? "?"} días${campo(v,campoAutor) ? `, ${campo(v,campoAutor)}` : ""})`).join("; ");
+    return `- "${q}": ${vs.length} videos, ${fmtN(suma)} vistas en total (máximo ${fmtN(Math.max(0,...vistas))}), ${recientes} publicados en los últimos 90 días. Más vistos: ${top}`;
+  }).join("\n");
+}
+async function validarTiktok(t, cands, signal){
+  const r = await correrActor(t, "tiktok", ACTORES.tiktok, { searchQueries: cands.map(c=>c.video), resultsPerPage: 6, shouldDownloadVideos: false, shouldDownloadCovers: false, shouldDownloadSubtitles: false, shouldDownloadSlideshowImages: false }, { tope: 0.5, limite: cands.length*6 + 10, campos: CAMPOS_TIKTOK, aplanar: "authorMeta", espera: 30000, maxMin: 15 }, signal);
+  return resumirVideos(r.items, "searchQuery", "playCount", "createTimeISO", "text", "authorMeta.name");
+}
+async function validarYoutube(t, cands, signal){
+  const r = await correrActor(t, "youtube", ACTORES.youtube, { searchQueries: cands.map(c=>c.video), maxResults: 5, maxResultsShorts: 0, maxResultStreams: 0 }, { tope: 0.5, limite: cands.length*5 + 10, campos: CAMPOS_YOUTUBE, espera: 30000, maxMin: 15 }, signal);
+  return resumirVideos(r.items, "input", "viewCount", "date", "title", "channelName");
+}
+async function validarCandidatos(t, per, ads, signal){
+  let cands = t.inv.cands;
+  if(!cands || !cands.length){
+    invPaso(t, "val", "Eligiendo los candidatos para validar…");
+    try{ cands = await elegirCandidatos(t, per, ads, signal); }catch(e){ if(e && e.code==="aborted") throw e; cands = []; }
+    if(!cands.length){ invPaso(t, "val", "No se pudieron elegir candidatos; el informe usa solo la primera búsqueda"); return null; }
+    t.inv.cands = cands; save();
+  }
+  invPaso(t, "val", `Validando ${cands.length} candidatos: anuncios, Google, TikTok, YouTube y páginas de la competencia…`);
+  const ok = (p, nombre) => p.catch(e=>{ if(e && e.code==="aborted") throw e; return `No disponible (${nombre}: ${errTxt(e)}).`; });
+  const [anuncios, google, landings, tiktok, youtube] = await Promise.all([
+    ok(validarAnuncios(t, cands, ads, signal), "anuncios"), ok(validarGoogle(t, cands, signal), "Google"), ok(leerLandings(t, ads, signal), "páginas"), ok(validarTiktok(t, cands, signal), "TikTok"), ok(validarYoutube(t, cands, signal), "YouTube")
+  ]);
+  invPaso(t, "val", `Listo: ${cands.length} candidatos validados`);
+  return { cands, anuncios, google, landings, tiktok, youtube };
 }
 const MOTIVOS_RECHAZO = ["Ya lo testeé y no funcionó", "No me interesa ese nicho", "Demasiada competencia", "Difícil de crear o de vender"];
 let prodRechazando = null;
@@ -1389,11 +1500,11 @@ ${store.negocio.trim() || "Vende cursos digitales por WhatsApp en Latinoamérica
 Pedido del dueño: ${t.texto}
 Tema o nicho: ${v.tema || "abierto, explora varios nichos"}${memoriaProductos()}
 
-Devuelve SOLO un objeto JSON con dos claves:
+Devuelve SOLO un objeto JSON con estas claves:
 - "consultas": ${v.motor==="perplexity" ? "10 preguntas de búsqueda web, completas y específicas" : "20 búsquedas de Google, cortas (4 a 9 palabras) y específicas, 2 por ángulo"}, en español, que cubran estos ángulos: (1) infoproductos y cursos que más se venden hoy en Hotmart, Kiwify y Eduzz en Latinoamérica; (2) anuncios de cursos online que llevan meses corriendo en Facebook, Instagram y TikTok en ${pais}; (3) nichos evergreen (dinero extra, oficios, belleza, salud y bienestar, relaciones, mascotas, manualidades, cocina, tecnología) y sus subnichos con más demanda; (4) micronichos poco explotados en ${pais}; (5) tendencias de búsqueda en Google Trends, TikTok y YouTube de los últimos 3 meses en ${pais}; (6) oficios y habilidades que la gente quiere aprender para ganar dinero desde casa; (7) quejas, dudas y deseos de la gente en foros, grupos y comentarios; (8) precios de cursos parecidos en pesos de ${pais}; (9) nivel de competencia y saturación; (10) casos de éxito recientes de creadores latinos.${v.tema ? ` Enfoca todas las consultas en el tema "${v.tema}" y sus subnichos.` : ""}
-- "palabras": 6 frases cortas (2 a 4 palabras) para buscar anuncios en la Biblioteca de anuncios de Meta, como las escribiría un anunciante de cursos en ${pais}. Ejemplos: "curso online", "aprende desde casa", "clases grabadas", "certificado incluido".${v.tema ? ` Al menos 4 deben ser del tema "${v.tema}", por ejemplo "curso de ${v.tema}".` : ""}`;
+- "palabras": 6 frases cortas (2 a 4 palabras) para buscar anuncios en la Biblioteca de anuncios de Meta, como las escribiría un anunciante de cursos en ${pais}. Ejemplos: "curso online", "aprende desde casa", "clases grabadas", "certificado incluido".${v.tema ? ` Al menos 4 deben ser del tema "${v.tema}", por ejemplo "curso de ${v.tema}".` : ""}${otrosPaises(t).includes("BR") ? `\n- "palabras_pt": 2 frases cortas en portugués de Brasil para buscar anuncios de cursos en la Biblioteca de anuncios de Brasil (por ejemplo "curso online", "aprenda em casa")${v.tema ? `, del tema "${v.tema}"` : ""}.` : ""}`;
 }
-function informePrompt(t, per, ads){
+function informePrompt(t, per, ads, val){
   const d = deptById(t.dept), a = d.agentes[t.agente], v = t.inv, n = Number(v.cuantos) || 7, pais = PAISES[v.pais] || "Colombia";
   return `Eres "${a.rol}", del departamento de ${d.nombre}, en un equipo de agentes que trabaja para un negocio de infoproductos (cursos digitales).
 Tu especialidad: ${a.desc}.${a.instr && a.instr.trim() ? `\n\nInstrucciones del dueño para tu puesto (síguelas siempre):\n${a.instr.trim()}` : ""}
@@ -1416,8 +1527,35 @@ Anunciantes ordenados por fuerza (días activos y cantidad de anuncios):
 
 C) LO QUE VIO EL DUEÑO:
 ${v.notas ? v.notas.slice(0,6000) : "Nada."}
+${ads && ads.otrosTexto ? `\nD) ANUNCIOS ACTIVOS EN OTROS PAÍSES (para encontrar productos que funcionan allá y todavía no hay en ${pais}):\n<<<\n${ads.otrosTexto.slice(0,15000)}\n>>>\n` : ""}${val ? `
+E) VALIDACIÓN DE LOS CANDIDATOS (segunda búsqueda, enfocada en cada producto):
+Candidatos: ${val.cands.map(c=>`${c.nombre} [${c.nicho}${c.origen ? `, visto en ${c.origen}` : ""}]`).join(" | ")}
+
+E1) Anuncios activos de cada candidato en ${pais}:
+${val.anuncios ? (typeof val.anuncios==="string" ? val.anuncios : val.anuncios.texto) : "No disponible."}
+
+E2) Anunciantes más fuertes: total de anuncios activos que tienen (si tienen muchos, están escalando):
+${val.anuncios && val.anuncios.paginas ? val.anuncios.paginas : "No disponible."}
+
+E3) Lo que venden los anunciantes más fuertes (texto de sus páginas de venta: precio, promesa, módulos, bonos, garantía):
+<<<
+${String(val.landings || "No disponible.").slice(0, 20000)}
+>>>
+
+E4) Google: demanda y precios de cada candidato:
+<<<
+${String(val.google || "No disponible.").slice(0, 15000)}
+>>>
+
+E5) TikTok (demanda orgánica: vistas y qué tan recientes son los videos):
+${val.tiktok || "No disponible."}
+
+E6) YouTube:
+${val.youtube || "No disponible."}
+` : ""}
 
 Cómo leer los anuncios: un anuncio que lleva más de 30 días activo casi siempre es rentable; más de 90 días es un ganador probado; un anunciante con muchos anuncios activos del mismo producto lo está escalando. Esa es la evidencia más fuerte que tienes, úsala.
+Cómo leer la validación: prioriza los candidatos con anuncios activos de más de 30 días y videos con muchas vistas publicados en los últimos 90 días. Si un candidato casi no tiene anuncios ni videos recientes, bájale el puntaje o descártalo. Usa los precios y ofertas reales de la competencia (E3) para sugerir precio y diferenciación.
 
 Entrega en este orden, en español colombiano neutro:
 
@@ -1435,6 +1573,7 @@ Ordenados del mejor al peor. Para cada uno:
 - **Para quién y qué dolor resuelve:**
 - **Promesa:** la transformación en una frase
 - **Evidencia de demanda:** anuncios (anunciante y días), tendencias y fuentes con su enlace
+- **Validación:** anuncios activos en ${pais} (total y días del más fuerte), vistas en TikTok y YouTube y qué tan recientes, y cómo vende la competencia (precio y oferta)
 - **Competencia:** baja, media o alta, y cómo diferenciarse
 - **Precio sugerido:** en pesos de ${pais}, con oferta, bonos y garantía
 - **Por qué se vende bien por WhatsApp:**
@@ -1443,7 +1582,10 @@ Ordenados del mejor al peor. Para cada uno:
 - **Riesgos:**
 - **Puntaje:** demanda /30, competencia /20, facilidad de crearlo /15, venta por WhatsApp /15, margen /20
 
-## Mi recomendación
+${ads && ads.otrosTexto ? `## Oportunidades desde otros países
+Productos que funcionan en otros países (con anunciante y días activos) y que todavía no se ven en ${pais}, y cómo adaptarlos.
+
+` : ""}## Mi recomendación
 Cuál lanzar primero y por qué, con un plan de 14 días.
 
 ${memoriaProductos() ? memoriaProductos().trim() + "\n\n" : ""}Reglas: solo productos que una persona pueda crear o licenciar (cursos grabados, guías, plantillas, retos); nada ilegal, ni promesas de hacerse rico, ni curas milagrosas. Cita las fuentes con su enlace cuando las tengas. Si un dato es estimado, dilo. No uses tablas. Termina con una línea "Siguiente paso:" con una sugerencia breve.`;
@@ -1463,6 +1605,7 @@ async function investigar(t, opts){
     consultas = (plan && Array.isArray(plan.consultas) ? plan.consultas : []).map(limpiarConsulta).filter(x=>x.length>10).slice(0,22);
     palabras = (plan && Array.isArray(plan.palabras) ? plan.palabras : []).map(x=>limpiarConsulta(x).slice(0,60)).filter(Boolean).slice(0,8);
     if(!consultas.length) throw { message:"No pude planear la investigación. Pulsa Rehacer." };
+    t.inv.palabrasPt = (plan && Array.isArray(plan.palabras_pt) ? plan.palabras_pt : []).map(x=>limpiarConsulta(x).slice(0,60)).filter(Boolean).slice(0,3);
     t.inv.consultas = consultas; t.inv.palabras = palabras; save();
   }
   invPaso(t, "plan", `Plan: ${consultas.length} búsquedas en internet${Number(t.inv.anuncios) ? ` y ${palabras.length} búsquedas de anuncios` : ""}`);
@@ -1470,8 +1613,10 @@ async function investigar(t, opts){
   const [per, ads] = await Promise.all([ (t.inv.motor==="perplexity" ? correrPerplexity(t, consultas, signal) : correrWebApify(t, consultas, signal)).catch(fallo("per")), correrAnuncios(t, palabras, signal).catch(fallo("ads")) ]);
   if(!per && !ads) throw { message:"No llegó información ni de Perplexity ni de Apify. Revisa los mensajes de arriba y pulsa Rehacer." };
   t.inv.fuentes = { per: per && per.url, ads: ads && ads.url };
+  let val = null;
+  try{ val = await validarCandidatos(t, per, ads, signal); }catch(e){ if(e && e.code==="aborted") throw e; invPaso(t, "val", "No se pudo validar: " + errTxt(e)); }
   invPaso(t, "rep", "Analizando todo y escribiendo el informe…");
-  const r = await sample(informePrompt(t, per, ads), { ...opts, modelTier:"complex" });
+  const r = await sample(informePrompt(t, per, ads, val), { ...opts, modelTier:"complex" });
   invPaso(t, "rep", "Informe listo");
   return r;
 }
@@ -1654,8 +1799,9 @@ function togglePlan(){
   if(show !== antes) renderPasos();
   if(show) $("taskTxt").placeholder = "Opcional: indicaciones extra para el estratega. Ej: enfócate en mujeres que nunca han hecho joyería";
 }
-function leerInv(){ const b = { ...INV_DEF }; document.querySelectorAll("#inv [data-i]").forEach(el=>{ b[el.dataset.i] = el.value.trim(); }); return b; }
-function llenarInv(b){ const v = { ...INV_DEF, ...(b||{}) }; document.querySelectorAll("#inv [data-i]").forEach(el=>{ el.value = v[el.dataset.i] || ""; if(el.tagName==="SELECT" && el.selectedIndex<0) el.selectedIndex = 0; }); }
+function leerInv(){ const b = { ...INV_DEF }; document.querySelectorAll("#inv [data-i]").forEach(el=>{ b[el.dataset.i] = el.value.trim(); }); b.otros = [...document.querySelectorAll("#invOtros input:checked")].map(x=>x.value).join(","); return b; }
+function pintarOtros(v){ const sel = String(v.otros||"").split(","); $("invOtros").innerHTML = Object.entries(PAISES_OTROS).filter(([c])=>c!==(v.pais||"CO")).map(([c,n])=>`<label class="sw" style="font-size:13px;margin-right:10px"><input type="checkbox" value="${c}" ${sel.includes(c) ? "checked" : ""}> ${n}</label>`).join(""); }
+function llenarInv(b){ const v = { ...INV_DEF, ...(b||{}) }; document.querySelectorAll("#inv [data-i]").forEach(el=>{ el.value = v[el.dataset.i] || ""; if(el.tagName==="SELECT" && el.selectedIndex<0) el.selectedIndex = 0; }); pintarOtros(v); }
 function toggleInv(){
   const show = esInvestigador(deptSel, $("agentSel").value);
   const el = $("inv"), antes = !el.hidden;
@@ -2059,7 +2205,7 @@ function invHTML(t){
   const v = t.inv, p = v.prog || {};
   const prof = v.motor==="perplexity" ? (v.preset==="deep-research" ? "Perplexity profunda" : "Perplexity") : "Google vía Apify";
   let h = `<div class="brief-box"><b>Investigación:</b> ${esc(v.tema || "todos los nichos")}, ${esc(PAISES[v.pais] || "Colombia")}. ${Number(v.anuncios) ? `${esc(v.anuncios)} anuncios` : "sin anuncios"}, buscador: ${prof}, ${esc(v.cuantos || 7)} productos.`;
-  const pasosTxt = [p.plan, p.per, p.ads, p.rep].filter(Boolean);
+  const pasosTxt = [p.plan, p.per, p.ads, p.val, p.rep].filter(Boolean);
   if(pasosTxt.length) h += `<ul style="margin:6px 0 0">${pasosTxt.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`;
   const f = v.fuentes || {};
   if(f.per || f.ads) h += `<div class="chain" style="margin:8px 0 0">${f.per ? `<a class="drv" href="${esc(f.per)}" target="_blank" rel="noopener">Datos de la búsqueda web</a>` : ""}${f.ads ? `<a class="drv" href="${esc(f.ads)}" target="_blank" rel="noopener">Anuncios de Apify</a>` : ""}</div>`;
@@ -2143,6 +2289,7 @@ $("cvCfg").addEventListener("change", ev=>{
   if(ev.target.id==="calCopy") c.copyDef = ev.target.checked;
   save(); revisarRutinas();
 });
+$("inv").addEventListener("change", ev=>{ if(ev.target.dataset && ev.target.dataset.i==="pais") pintarOtros(leerInv()); });
 $("composer").addEventListener("change", ev=>{ const i = ev.target.closest("[data-subir]"); if(i && i.files && i.files.length){ subirFotos(i.dataset.subir, i.files); } });
 $("composer").addEventListener("click", ev=>{ const q = ev.target.closest("[data-quitar]"); if(q){ ev.preventDefault(); const [k, id] = q.dataset.quitar.split("|"); fotosForm[k] = (fotosForm[k]||[]).filter(x=>x!==id); renderFotos(k); } });
 $("list").addEventListener("click", e=>{

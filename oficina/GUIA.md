@@ -100,3 +100,10 @@ Qué hace una investigación:
 4. Claude entrega el ranking de infoproductos con puntaje, evidencia, precio sugerido, hooks y plan de validación.
 
 Costo aproximado: 1 a 1,20 USD de Apify y 50 a 80 operaciones de Make por investigación. Deja la oficina abierta mientras trabaja (5 a 20 minutos).
+
+### Investigación en dos fases (actualización)
+
+1. **Descubrir:** anuncios activos de Meta en el país principal y en los países marcados (por defecto México y Brasil), 20 búsquedas de Google y lectura de las mejores páginas.
+2. **Validar** (para 8 a 10 candidatos): anuncios activos de cada candidato, total de anuncios de los anunciantes más fuertes, sus páginas de venta (precio y oferta), una búsqueda de Google por candidato, y videos de TikTok (`clockworks~tiktok-scraper`) y YouTube (`streamers~youtube-scraper`).
+
+Costo aproximado: 1,80 a 2,50 USD de Apify y 120 a 180 operaciones de Make por investigación.
