@@ -55,7 +55,7 @@ Hay dos casos.
 
 ### El modelo de imagen
 
-El escenario usa **gpt-image-2.5-ext**. Si quieres otro modelo (por ejemplo `gemini-3-pro-image-preview`), cámbialo en los 2 módulos HTTP que hacen la petición POST a `/v1/images/generations`.
+El escenario usa **gpt-image-2-ext**. Si quieres otro modelo (por ejemplo `gemini-3-pro-image-preview`), cámbialo en los 2 módulos HTTP que hacen la petición POST a `/v1/images/generations`.
 
 ## Paso 5. Prueba rápida
 

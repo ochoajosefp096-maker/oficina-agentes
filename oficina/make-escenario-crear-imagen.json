@@ -95,7 +95,7 @@
                 "requestCompressedContent": true,
                 "contentType": "json",
                 "inputMethod": "jsonString",
-                "jsonStringBodyContent": "{\"model\": \"gpt-image-2.5-ext\", \"prompt\": \"{{1.prompt}}\", \"size\": \"{{ifempty(1.formato; \"1:1\")}}\", \"resolution\": \"1K\", \"n\": 1}"
+                "jsonStringBodyContent": "{\"model\": \"gpt-image-2-ext\", \"prompt\": \"{{1.prompt}}\", \"size\": \"{{ifempty(1.formato; \"1:1\")}}\", \"resolution\": \"1K\", \"n\": 1}"
               },
               "metadata": {
                 "designer": {
@@ -328,7 +328,7 @@
                 "requestCompressedContent": true,
                 "contentType": "json",
                 "inputMethod": "jsonString",
-                "jsonStringBodyContent": "{\"model\": \"gpt-image-2.5-ext\", \"prompt\": \"{{1.prompt}}\", \"size\": \"{{ifempty(1.formato; \"1:1\")}}\", \"resolution\": \"1K\", \"n\": 1, \"image_urls\": [\"data:image/jpeg;base64,{{toString(20.data; \"base64\")}}\"]}"
+                "jsonStringBodyContent": "{\"model\": \"gpt-image-2-ext\", \"prompt\": \"{{1.prompt}}\", \"size\": \"{{ifempty(1.formato; \"1:1\")}}\", \"resolution\": \"1K\", \"n\": 1, \"image_urls\": [\"data:image/jpeg;base64,{{toString(20.data; \"base64\")}}\"]}"
               },
               "metadata": {
                 "designer": {
