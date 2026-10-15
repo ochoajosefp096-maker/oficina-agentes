@@ -1963,9 +1963,10 @@ function tarjetaProducto(p){
     <div class="t">${esc(p.nombre)}${p.puntaje ? ` — ${p.puntaje}/100` : ""}</div>
     ${p.nicho ? `<div class="m">${esc(p.nicho)}</div>` : ""}
     <span class="pill ${p.estado==="aprobado" ? "lista" : p.estado==="rechazado" ? "" : "trabajando"}">${EST_PROD[p.estado] || ""}</span>
+    ${p.estado==="aprobado" && p.fechas ? `<div class="brief-box" style="margin:8px 0 0"><b>Calendario:</b> del ${esc(fechaLarga(p.fechas.desde))} al ${esc(fechaLarga(p.fechas.hasta))}, ${p.fechas.porDia} reel${p.fechas.porDia>1 ? "es" : ""} por día</div>` : ""}
     ${p.estado==="rechazado" && p.motivo ? `<div class="brief-box" style="margin:8px 0 0"><b>Motivo del rechazo:</b> ${esc(p.motivo)}</div>` : ""}
     <div class="ficha-v" style="margin-top:8px">${fila("Promesa", p.promesa)}${fila("Qué enseña", p.queEnsena)}${fila("Para quién", p.publico)}${fila("Dolor", p.dolor)}${fila("Precio sugerido", p.precio)}${fila("Evidencia", p.evidencia)}${fila("Competencia", p.competencia)}${fila("Por WhatsApp", p.whatsapp)}${p.hooks && p.hooks.length ? `<div><b>Hooks:</b> ${p.hooks.map(h=>esc(h)).join(" · ")}</div>` : ""}${fila("Validación en 7 días", p.validacion)}${fila("Riesgos", p.riesgos)}</div>
-    ${p.estado==="pendiente" ? `<div class="opts" style="margin-top:8px"><label>Días a planear</label><input type="number" min="1" max="30" value="7" data-pdias="${p.id}" style="width:64px;border:1.5px solid var(--line);border-radius:8px;padding:4px 6px;background:var(--panel-2)"><label>Reels por día</label><input type="number" min="1" max="5" value="1" data-pdia="${p.id}" style="width:56px;border:1.5px solid var(--line);border-radius:8px;padding:4px 6px;background:var(--panel-2)"></div>` : ""}
+    ${p.estado==="pendiente" ? `<div class="opts" style="margin-top:8px"><label>Empieza el</label><input type="date" value="${sumarDias(hoyStr(), 1)}" min="${hoyStr()}" data-pdesde="${p.id}" style="border:1.5px solid var(--line);border-radius:8px;padding:4px 6px;background:var(--panel-2)"><label>Días a planear</label><input type="number" min="1" max="30" value="7" data-pdias="${p.id}" style="width:64px;border:1.5px solid var(--line);border-radius:8px;padding:4px 6px;background:var(--panel-2)"><label>Reels por día</label><input type="number" min="1" max="5" value="1" data-pdia="${p.id}" style="width:56px;border:1.5px solid var(--line);border-radius:8px;padding:4px 6px;background:var(--panel-2)"></div>` : ""}
     ${prodRechazando===p.id ? `<div class="vaciar-bar" style="margin:10px 0 0">¿Por qué lo rechazas? El Investigador lo tendrá en cuenta y no te lo volverá a traer.<div class="chain" style="margin:8px 0 0">${MOTIVOS_RECHAZO.map(m=>`<button data-pmot="${esc(m)}">${esc(m)}</button>`).join("")}</div><textarea class="txt" data-pmotivo="${p.id}" style="min-height:54px" placeholder="Escribe el motivo. Ej: ya lo testeé con 50 mil pesos y nadie escribió al WhatsApp"></textarea><div class="acc"><button class="no" data-pcancel>Cancelar</button><button class="si" data-pconf="${p.id}">Rechazar</button></div></div>` : ""}
     <div class="r-acc">${p.estado==="pendiente" ? `<button class="ok" data-papr="${p.id}">Aprobar y enviar al estratega</button><button data-prech="${p.id}">Rechazar</button>` : ""}${p.estado==="rechazado" ? `<button data-prest="${p.id}">Restaurar</button>` : ""}${tarea ? `<button data-pver="${tarea.id}">Ver tarea del estratega</button>` : ""}${inv ? `<button data-pver="${inv.id}">Ver informe</button>` : ""}<button class="del" data-pdel="${p.id}">Borrar</button></div>
   </div>`;
@@ -1977,10 +1978,11 @@ function renderProductos(){
   const vis = ps.filter(p=>prodFiltro==="todos" || p.estado===prodFiltro);
   $("prodLista").innerHTML = vis.length ? vis.map(tarjetaProducto).join("") : `<div class="empty">${ps.length ? "No hay productos en esta pestaña." : "Todavía no hay productos. Asigna una tarea al Investigador de productos (Marketing) y aquí aparecerán los que encuentre."}</div>`;
 }
-function aprobarProducto(p, dias, porDia){
+function aprobarProducto(p, dias, porDia, desde){
   const notas = [p.promesa && "Promesa: " + p.promesa, p.dolor && "Dolor principal: " + p.dolor, p.nicho && "Nicho: " + p.nicho, p.evidencia && "Evidencia de la investigación: " + p.evidencia, p.hooks && p.hooks.length && "Hooks sugeridos: " + p.hooks.join(" | "), p.whatsapp && "Por qué se vende por WhatsApp: " + p.whatsapp, "Producto en fase de TESTEO: prioriza variedad de ángulos, hooks y protagonistas."].filter(Boolean).join("\n");
-  const plan = { curso: p.nombre, publico: p.publico, oferta: p.precio, dias, porDia, enfoque: "Solo vender (que escriban al WhatsApp)", notas, desde: "" };
-  plan.fechas = fechasPlan("", dias, p.nombre);
+  const plan = { curso: p.nombre, publico: p.publico, oferta: p.precio, dias, porDia, enfoque: "Solo vender (que escriban al WhatsApp)", notas, desde: desde || "" };
+  plan.fechas = fechasPlan(plan.desde, dias, p.nombre);
+  p.fechas = { desde: plan.fechas[0], hasta: plan.fechas[plan.fechas.length-1], porDia };
   const t = nuevaTarea(`Calendario de producción: ${p.nombre} (${dias} días, ${porDia} reel${porDia>1 ? "es" : ""} por día)`, "marketing", 1, { plan, producto: { nombre: p.nombre, descripcion: p.queEnsena || "", fotos: [] }, prodId: p.id });
   p.estado = "aprobado"; p.tareaId = t.id; p.aprobado = Date.now();
   save(); renderProductos(); renderAll();
@@ -2090,7 +2092,7 @@ $("prodTabs").onclick = e=>{ const b = e.target.closest("[data-pf]"); if(b){ pro
 $("prodLista").addEventListener("click", e=>{
   const g = s => e.target.closest(s), byId = id => (store.productos || []).find(x=>x.id===id);
   let b;
-  if((b = g("[data-papr]"))){ const p = byId(b.dataset.papr); if(!p) return; const dias = Math.min(30, Math.max(1, Number(($("prodLista").querySelector(`[data-pdias=\"${p.id}\"]`)||{}).value) || 7)), porDia = Math.min(5, Math.max(1, Number(($("prodLista").querySelector(`[data-pdia=\"${p.id}\"]`)||{}).value) || 1)); aprobarProducto(p, dias, porDia); return; }
+  if((b = g("[data-papr]"))){ const p = byId(b.dataset.papr); if(!p) return; const dias = Math.min(30, Math.max(1, Number(($("prodLista").querySelector(`[data-pdias=\"${p.id}\"]`)||{}).value) || 7)), porDia = Math.min(5, Math.max(1, Number(($("prodLista").querySelector(`[data-pdia=\"${p.id}\"]`)||{}).value) || 1)); const desde = (($("prodLista").querySelector(`[data-pdesde="${p.id}"]`)||{}).value || "").trim(); if(desde && desde < hoyStr()){ alert("La fecha de inicio no puede ser anterior a hoy."); return; } aprobarProducto(p, dias, porDia, /^\d{4}-\d{2}-\d{2}$/.test(desde) ? desde : ""); return; }
   if((b = g("[data-prech]"))){ prodRechazando = b.dataset.prech; renderProductos(); const ta = $("prodLista").querySelector(`[data-pmotivo="${prodRechazando}"]`); if(ta) ta.focus(); return; }
   if((b = g("[data-pmot]"))){ const ta = $("prodLista").querySelector(`[data-pmotivo="${prodRechazando}"]`); if(ta){ ta.value = b.dataset.pmot + (ta.value.trim() ? ". " + ta.value.trim() : ""); ta.focus(); } return; }
   if(g("[data-pcancel]")){ prodRechazando = null; renderProductos(); return; }
