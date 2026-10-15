@@ -324,6 +324,12 @@ select{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:10px;padd
 .eq-ok{color:var(--ok);font-weight:700;font-size:13px}
 @media (max-width:700px){ .eq-body{grid-template-columns:1fr;overflow:auto} .eq-list{border-right:0;border-bottom:1px solid var(--line);max-height:200px} .eq-form{overflow:visible} }
 .biz textarea{margin:0 22px;width:calc(100% - 44px);min-height:150px}
+.dialog.biz{overflow-y:auto;overscroll-behavior:contain}
+.dialog.biz>header{position:sticky;top:0;background:var(--panel);z-index:1}
+.dialog.biz>footer{position:sticky;bottom:0;background:var(--panel)}
+.dialog.prod{width:min(860px,100%)}
+.prod-body{flex:1;min-height:0;overflow-y:auto;padding:4px 20px 20px;display:flex;flex-direction:column;gap:10px}
+.prod-body>.cal-e{flex:none}
 .drive-set{margin:16px 22px 0;padding-top:14px;border-top:1px solid var(--line)}
 .drive-set h4{font-family:var(--display);font-size:16px;margin:0 0 8px}
 .drive-set p{margin:6px 0 0;font-size:13.5px;color:var(--muted)}
@@ -367,6 +373,7 @@ select{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:10px;padd
     <div class="spacer"></div>
     <button class="live" id="live" title="Reconectar con Claude"><i></i><span id="liveTxt">Conectando…</span></button>
     <button class="btn-ghost" id="eqBtn">Equipo</button>
+    <button class="btn-ghost" id="prodBtn">Productos<b class="cal-badge" id="prodBadge" hidden></b></button>
     <button class="btn-ghost" id="calBtn">Calendario<b class="cal-badge" id="calBadge" hidden></b></button>
     <button class="btn-ghost" id="bizBtn">Ajustes</button>
   </header>
@@ -511,6 +518,17 @@ select{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:10px;padd
   </div>
 </div>
 
+<div class="overlay" id="prodDlg" role="dialog" aria-modal="true" aria-labelledby="pTitle">
+  <div class="dialog prod" style="--c:var(--marketing)">
+    <header>
+      <div><h3 id="pTitle">Productos para testear</h3><div class="who">Lo que encontró el Investigador de productos. Aprueba los que quieras: cada uno pasa al Estratega de contenido, que arma su calendario de reels.</div></div>
+      <button class="x" data-close aria-label="Cerrar">×</button>
+    </header>
+    <div style="padding:0 20px 10px"><div class="tabs" id="prodTabs" role="tablist"></div></div>
+    <div class="prod-body" id="prodLista"></div>
+  </div>
+</div>
+
 <div class="overlay" id="eqDlg" role="dialog" aria-modal="true" aria-labelledby="eTitle">
   <div class="dialog eq" id="eqBox">
     <header>
@@ -624,7 +642,7 @@ function compactarTareas(){
   store.tareas.forEach((t,i)=>{ if(fin(t) && t.entrada && (!t.origen || store.tareas.some(x=>x.id===t.origen.id))) delete t.entrada; if(i>=25 && fin(t) && t.resultado && t.resultado.length>6200) t.resultado = t.resultado.slice(0,6000) + "\n\n… (el resultado completo quedó guardado en Google Drive)"; });
   while(store.tareas.length>70){ const i = store.tareas.map(fin).lastIndexOf(true); if(i<0) break; store.tareas.splice(i,1); }
 }
-function datosOficina(){ return { tareas: store.tareas.map(t=>({...t})), negocio: store.negocio, rutinas: store.rutinas.map(r=>({...r})), drive: driveCfg(), avisos: avisosCfg(), img: imgCfg(), equipo: store.equipo || {}, briefReel: store.briefReel || null, planUlt: store.planUlt || null, calCfg: calCfg(), invCfg: invCfg(), invUlt: store.invUlt || null }; }
+function datosOficina(){ return { tareas: store.tareas.map(t=>({...t})), negocio: store.negocio, rutinas: store.rutinas.map(r=>({...r})), drive: driveCfg(), avisos: avisosCfg(), img: imgCfg(), equipo: store.equipo || {}, briefReel: store.briefReel || null, planUlt: store.planUlt || null, calCfg: calCfg(), invCfg: invCfg(), invUlt: store.invUlt || null, productos: store.productos || [] }; }
 async function saveCal(){
   if(savingCal){ pendingCal = true; return; }
   savingCal = true;
@@ -652,7 +670,7 @@ async function initStorage(){
       const snap = await docRef.get();
       const crudo = snap && snap.data && snap.data();
       const data = crudo ? JSON.parse(JSON.stringify(crudo)) : null;
-      if(data) store = { tareas: Array.isArray(data.tareas)?data.tareas:[], negocio: data.negocio||"", rutinas: Array.isArray(data.rutinas)?data.rutinas:[], drive: data.drive || { activo:true, carpetas:{} }, avisos: data.avisos || { sonido:true }, img: data.img || { auto:true, max:4 }, equipo: data.equipo || {}, briefReel: data.briefReel || null, planUlt: data.planUlt || null, calCfg: data.calCfg || null, invCfg: data.invCfg || {}, invUlt: data.invUlt || null };
+      if(data) store = { tareas: Array.isArray(data.tareas)?data.tareas:[], negocio: data.negocio||"", rutinas: Array.isArray(data.rutinas)?data.rutinas:[], drive: data.drive || { activo:true, carpetas:{} }, avisos: data.avisos || { sonido:true }, img: data.img || { auto:true, max:4 }, equipo: data.equipo || {}, briefReel: data.briefReel || null, planUlt: data.planUlt || null, calCfg: data.calCfg || null, invCfg: data.invCfg || {}, invUlt: data.invUlt || null, productos: Array.isArray(data.productos) ? data.productos : [] };
       try{ const cs = calRef ? await calRef.get() : null; const cd = cs && cs.data && cs.data(); store.calendario = cd && Array.isArray(cd.items) ? JSON.parse(JSON.stringify(cd.items)) : []; }catch(e){ store.calendario = []; }
     }else{
       const raw = localStorage.getItem("oficina-agentes");
@@ -800,6 +818,7 @@ async function ejecutar(t){
     if(t.calId) marcarCal(t.calId, (t.siguientes && t.siguientes.length) ? "produccion" : "listo");
     if(t.calId && esGuionista(t.dept, t.agente)){ const ce = store.calendario.find(x=>x.id===t.calId); if(ce && opcCopy(ce) && !(copyTarea(ce) && copyTarea(ce).creada > t.creada)) lanzarCopy(ce, t); }
     if(t.plan) pasarAlCalendario(t);
+    if(esInvestigador(t.dept, t.agente)) extraerProductos(t);
     guardarEnDrive(t);
     avisar(t, true, sig);
     if(generaImg) crearImagenes(t);
@@ -1875,7 +1894,64 @@ function guardarFormCal(){
   calSel = vals.fecha; const [y,m] = vals.fecha.split("-").map(Number); calMes = new Date(y,m-1,1);
   calEdit = null; saveCal(); renderCalView(); renderAll(); revisarRutinas();
 }
-function actualizarBadge(){ const n = store.calendario.filter(e=>e.estado==="pendiente").length; const b = $("calBadge"); if(!b) return; b.hidden = !n; b.textContent = n; }
+/* ---------- Productos encontrados por el investigador ---------- */
+const EST_PROD = { pendiente:"Por aprobar", aprobado:"Enviado al estratega", rechazado:"Rechazado" };
+let prodFiltro = "pendiente";
+async function extraerProductos(t){
+  if(!sample) return;
+  t.productos = { estado:"pasando" }; renderAll();
+  try{
+    const lista = await sample.json(`Del siguiente informe de investigación, extrae cada infoproducto del ranking recomendado para lanzar. Devuelve SOLO un arreglo JSON, un objeto por producto y en el mismo orden del informe, con estas claves exactas: "nombre" (nombre comercial del curso), "nicho" (nicho › subnicho › micronicho), "puntaje" (número de 0 a 100), "queEnsena" (los módulos en una o dos frases), "publico", "dolor", "promesa", "precio" (precio sugerido con la oferta), "evidencia" (2 o 3 frases con los anuncios, días activos y fuentes que lo respaldan), "competencia", "whatsapp" (por qué se vende bien por WhatsApp), "hooks" (arreglo de textos), "validacion" (cómo validarlo en 7 días), "riesgos". Copia los datos del informe sin inventar. Si un dato no aparece, usa "".\n\nINFORME:\n${String(t.resultado || "").slice(0, 60000)}`, { modelTier:"default", cache:false });
+    const S = (x, k, n) => typeof x[k]==="string" ? x[k].trim().slice(0, n || 600) : "";
+    const arr = (Array.isArray(lista) ? lista : (lista && Array.isArray(lista.productos) ? lista.productos : [])).filter(x=>x && typeof x==="object" && S(x,"nombre"));
+    if(!arr.length) throw new Error("vacío");
+    store.productos = store.productos || [];
+    arr.slice(0, 20).forEach((x,i)=>store.productos.unshift({ id: nid(), nombre: S(x,"nombre",120), nicho: S(x,"nicho",200), puntaje: Math.max(0, Math.min(100, Math.round(Number(x.puntaje) || 0))), queEnsena: S(x,"queEnsena"), publico: S(x,"publico",300), dolor: S(x,"dolor",300), promesa: S(x,"promesa",300), precio: S(x,"precio",200), evidencia: S(x,"evidencia",900), competencia: S(x,"competencia",300), whatsapp: S(x,"whatsapp",300), hooks: (Array.isArray(x.hooks) ? x.hooks : []).map(h=>String(h).slice(0,200)).slice(0,5), validacion: S(x,"validacion"), riesgos: S(x,"riesgos",400), estado:"pendiente", invId: t.id, pais: (t.inv && t.inv.pais) || "CO", creada: Date.now() - i }));
+    t.productos = { estado:"listo", n: Math.min(arr.length, 20) };
+    avisoProductos(t.productos.n);
+  }catch(e){ t.productos = { estado:"error" }; }
+  save(); renderAll();
+}
+function avisoProductos(n){
+  const el = document.createElement("div");
+  el.className = "toast"; el.style.setProperty("--c", css("--marketing"));
+  el.innerHTML = `<div><b>${n} productos esperan tu aprobación</b><span>El Investigador de productos terminó</span></div><button data-ver>Ver productos</button><button class="tx" aria-label="Cerrar aviso">×</button>`;
+  el.querySelector("[data-ver]").onclick = ()=>{ abrirProductos(); el.remove(); };
+  el.querySelector(".tx").onclick = ()=>el.remove();
+  const cont = $("toasts"); cont.appendChild(el); while(cont.children.length>3) cont.firstElementChild.remove();
+  setTimeout(()=>el.remove(), 12000);
+}
+function abrirProductos(filtro){ if(filtro) prodFiltro = filtro; renderProductos(); $("prodDlg").classList.add("open"); }
+function tarjetaProducto(p){
+  const fila = (l, v) => v ? `<div><b>${l}:</b> ${esc(v)}</div>` : "";
+  const tarea = p.tareaId && store.tareas.find(x=>x.id===p.tareaId);
+  const inv = store.tareas.find(x=>x.id===p.invId);
+  return `<div class="cal-e ${p.estado==="rechazado" ? "rechazado" : ""}" style="--c:var(--marketing)">
+    <div class="t">${esc(p.nombre)}${p.puntaje ? ` — ${p.puntaje}/100` : ""}</div>
+    ${p.nicho ? `<div class="m">${esc(p.nicho)}</div>` : ""}
+    <span class="pill ${p.estado==="aprobado" ? "lista" : p.estado==="rechazado" ? "" : "trabajando"}">${EST_PROD[p.estado] || ""}</span>
+    <div class="ficha-v" style="margin-top:8px">${fila("Promesa", p.promesa)}${fila("Qué enseña", p.queEnsena)}${fila("Para quién", p.publico)}${fila("Dolor", p.dolor)}${fila("Precio sugerido", p.precio)}${fila("Evidencia", p.evidencia)}${fila("Competencia", p.competencia)}${fila("Por WhatsApp", p.whatsapp)}${p.hooks && p.hooks.length ? `<div><b>Hooks:</b> ${p.hooks.map(h=>esc(h)).join(" · ")}</div>` : ""}${fila("Validación en 7 días", p.validacion)}${fila("Riesgos", p.riesgos)}</div>
+    ${p.estado==="pendiente" ? `<div class="opts" style="margin-top:8px"><label>Días a planear</label><input type="number" min="1" max="30" value="7" data-pdias="${p.id}" style="width:64px;border:1.5px solid var(--line);border-radius:8px;padding:4px 6px;background:var(--panel-2)"><label>Reels por día</label><input type="number" min="1" max="5" value="1" data-pdia="${p.id}" style="width:56px;border:1.5px solid var(--line);border-radius:8px;padding:4px 6px;background:var(--panel-2)"></div>` : ""}
+    <div class="r-acc">${p.estado==="pendiente" ? `<button class="ok" data-papr="${p.id}">Aprobar y enviar al estratega</button><button data-prech="${p.id}">Rechazar</button>` : ""}${p.estado==="rechazado" ? `<button data-prest="${p.id}">Restaurar</button>` : ""}${tarea ? `<button data-pver="${tarea.id}">Ver tarea del estratega</button>` : ""}${inv ? `<button data-pver="${inv.id}">Ver informe</button>` : ""}<button class="del" data-pdel="${p.id}">Borrar</button></div>
+  </div>`;
+}
+function renderProductos(){
+  const ps = store.productos || [];
+  const c = { pendiente: ps.filter(p=>p.estado==="pendiente").length, aprobado: ps.filter(p=>p.estado==="aprobado").length, rechazado: ps.filter(p=>p.estado==="rechazado").length, todos: ps.length };
+  $("prodTabs").innerHTML = [["pendiente","Por aprobar"],["aprobado","Aprobados"],["rechazado","Rechazados"],["todos","Todos"]].map(([k,l])=>`<button class="tab" role="tab" data-pf="${k}" aria-selected="${prodFiltro===k}">${l}<b>${c[k]}</b></button>`).join("");
+  const vis = ps.filter(p=>prodFiltro==="todos" || p.estado===prodFiltro);
+  $("prodLista").innerHTML = vis.length ? vis.map(tarjetaProducto).join("") : `<div class="empty">${ps.length ? "No hay productos en esta pestaña." : "Todavía no hay productos. Asigna una tarea al Investigador de productos (Marketing) y aquí aparecerán los que encuentre."}</div>`;
+}
+function aprobarProducto(p, dias, porDia){
+  const notas = [p.promesa && "Promesa: " + p.promesa, p.dolor && "Dolor principal: " + p.dolor, p.nicho && "Nicho: " + p.nicho, p.evidencia && "Evidencia de la investigación: " + p.evidencia, p.hooks && p.hooks.length && "Hooks sugeridos: " + p.hooks.join(" | "), p.whatsapp && "Por qué se vende por WhatsApp: " + p.whatsapp, "Producto en fase de TESTEO: prioriza variedad de ángulos, hooks y protagonistas."].filter(Boolean).join("\n");
+  const plan = { curso: p.nombre, publico: p.publico, oferta: p.precio, dias, porDia, enfoque: "Solo vender (que escriban al WhatsApp)", notas, desde: "" };
+  plan.fechas = fechasPlan("", dias, p.nombre);
+  const t = nuevaTarea(`Calendario de producción: ${p.nombre} (${dias} días, ${porDia} reel${porDia>1 ? "es" : ""} por día)`, "marketing", 1, { plan, producto: { nombre: p.nombre, descripcion: p.queEnsena || "", fotos: [] }, prodId: p.id });
+  p.estado = "aprobado"; p.tareaId = t.id; p.aprobado = Date.now();
+  save(); renderProductos(); renderAll();
+}
+function actualizarBadgeProd(){ const n = (store.productos || []).filter(p=>p.estado==="pendiente").length; const b = $("prodBadge"); if(!b) return; b.hidden = !n; b.textContent = n; }
+function actualizarBadge(){ actualizarBadgeProd(); const n = store.calendario.filter(e=>e.estado==="pendiente").length; const b = $("calBadge"); if(!b) return; b.hidden = !n; b.textContent = n; }
 function renderAll(){ actualizarBadge(); if($("calView").classList.contains("open")) renderCalView(); renderList(); updateLive(); updateComposer(); actualizarEscena(); if(abierta) pintarDetalle(); }
 
 /* ---------- Detalle ---------- */
@@ -1914,6 +1990,7 @@ function pintarDetalle(){
   if(t.drive && t.drive.estado==="error") body += `<p class="drv-err">${esc(t.drive.error)}</p>`;
   if(t.estado==="lista") body += imagenesHTML(t);
   if(t.producto) body += `<div class="brief-box"><b>Producto:</b> ${esc(t.producto.nombre)}${t.producto.descripcion ? `<br><b>Qué enseña:</b> ${esc(t.producto.descripcion)}` : ""}${t.producto.fotos && t.producto.fotos.length ? `<div class="prod-fotos">${t.producto.fotos.map(id=>`<img src="/_blob/${esc(id)}" alt="Foto del producto">`).join("")}</div>` : ""}</div>`;
+  if(esInvestigador(t.dept, t.agente) && t.estado==="lista") body += `<div class="brief-box">${!t.productos ? `<button data-pextraer="${t.id}">Pasar estos productos a Productos</button>` : t.productos.estado==="pasando" ? "Pasando los productos a la sección Productos…" : t.productos.estado==="listo" ? `Se pasaron <b>${t.productos.n} productos</b> a la sección Productos para que los apruebes. <button data-pabrir>Abrir Productos</button>` : `No se pudieron pasar los productos. <button data-pextraer="${t.id}">Intentar de nuevo</button>`}</div>`;
   if(t.plan && t.estado==="lista") body += `<div class="brief-box">${!t.calendario || t.calendario.estado==="pasando" ? "Pasando el plan al calendario…" : t.calendario.estado==="listo" ? `Se pasaron <b>${t.calendario.n} reels</b> al calendario, desde el ${esc(fechaLarga(t.calendario.desde))}${calCfg().aprobacion!==false ? ". Están esperando tu aprobación" : ""}. <button data-vercal="${esc(t.calendario.desde)}">Abrir calendario</button>` : `No se pudo pasar el plan al calendario. <button data-recal="${t.id}">Intentar de nuevo</button>`}</div>`;
   if(t.inv) body += invHTML(t);
   if(t.brief) body += `<div class="brief-box">` + Object.entries(BRIEF_ETQ).filter(([k])=>t.brief[k]).map(([k,l])=>`<b>${esc(l)}:</b> ${esc(t.brief[k])}`).join("<br>") + `</div>`;
@@ -1968,6 +2045,17 @@ $("pasos").addEventListener("change", e=>{ const k = e.target.dataset.k, i = Num
   if(k==="dept"){ pasos[i].dept = e.target.value; pasos[i].agente = "auto"; renderPasos(); if(escenaLista) enfocarSala(pasos[i].dept); }
   else { pasos[i].agente = e.target.value; renderPasos(); if(escenaLista){ e.target.value==="auto" ? enfocarSala(pasos[i].dept) : enfocarAgente(pasos[i].dept, Number(e.target.value)); } } });
 $("calBtn").onclick = ()=>abrirCalendario();
+$("prodBtn").onclick = ()=>abrirProductos();
+$("prodTabs").onclick = e=>{ const b = e.target.closest("[data-pf]"); if(b){ prodFiltro = b.dataset.pf; renderProductos(); } };
+$("prodLista").addEventListener("click", e=>{
+  const g = s => e.target.closest(s), byId = id => (store.productos || []).find(x=>x.id===id);
+  let b;
+  if((b = g("[data-papr]"))){ const p = byId(b.dataset.papr); if(!p) return; const dias = Math.min(30, Math.max(1, Number(($("prodLista").querySelector(`[data-pdias=\"${p.id}\"]`)||{}).value) || 7)), porDia = Math.min(5, Math.max(1, Number(($("prodLista").querySelector(`[data-pdia=\"${p.id}\"]`)||{}).value) || 1)); aprobarProducto(p, dias, porDia); return; }
+  if((b = g("[data-prech]"))){ const p = byId(b.dataset.prech); if(p){ p.estado = "rechazado"; save(); renderProductos(); renderAll(); } return; }
+  if((b = g("[data-prest]"))){ const p = byId(b.dataset.prest); if(p){ p.estado = "pendiente"; save(); renderProductos(); renderAll(); } return; }
+  if((b = g("[data-pdel]"))){ store.productos = (store.productos || []).filter(x=>x.id!==b.dataset.pdel); save(); renderProductos(); renderAll(); return; }
+  if((b = g("[data-pver]"))){ $("prodDlg").classList.remove("open"); abrir(b.dataset.pver); return; }
+});
 $("cvPrev").onclick = ()=>{ calMes = new Date(calMes.getFullYear(), calMes.getMonth()-1, 1); renderCalView(); };
 $("cvNext").onclick = ()=>{ calMes = new Date(calMes.getFullYear(), calMes.getMonth()+1, 1); renderCalView(); };
 $("cvHoy").onclick = ()=>{ calEdit = null; abrirCalendario(hoyStr()); };
@@ -2021,6 +2109,8 @@ $("list").addEventListener("click", e=>{
 $("dOut").addEventListener("click", e=>{ const g = e.target.closest("[data-go]"); if(g) abrir(g.dataset.go);
   const dv = e.target.closest("[data-drv]"); if(dv){ const t = store.tareas.find(x=>x.id===dv.dataset.drv); if(t) guardarEnDrive(t, true); }
   { const vc = e.target.closest("[data-vercal]"); if(vc){ cerrar(); abrirCalendario(vc.dataset.vercal); } }
+  if(e.target.closest("[data-pabrir]")){ cerrar(); abrirProductos("pendiente"); }
+  { const px = e.target.closest("[data-pextraer]"); if(px){ const t = store.tareas.find(x=>x.id===px.dataset.pextraer); if(t && sample) extraerProductos(t); } }
   const rc = e.target.closest("[data-recal]"); if(rc){ const t = store.tareas.find(x=>x.id===rc.dataset.recal); if(t && sample) pasarAlCalendario(t); }
   const sh = e.target.closest("[data-sinhoja]"); if(sh){ const t = store.tareas.find(x=>x.id===sh.dataset.sinhoja); if(t && t.esperandoHoja){ const sig = encadenar(t, null); if(sig) alTerminar(t, sig); if(t.imagenes) t.imagenes.error = "La cadena siguió sin hoja de referencia."; save(); renderAll(); } }
   const ib = e.target.closest("[data-img]"); if(ib){ const t = store.tareas.find(x=>x.id===ib.dataset.img); if(t){ if(t.imagenes && t.imagenes.items && !t.imagenes.items.length) t.imagenes = null; crearImagenes(t, true); } } });
