@@ -123,8 +123,10 @@ En Ventas trabajan dos agentes. El Cerrador y el Seguimiento de leads están ocu
 - **Cómo se asignan las campañas:**
   - A un curso: por su nombre. Nombra las campañas con el curso al inicio (por ejemplo "Joyería 1", "Joyería 2").
   - A una línea de WhatsApp: cuando el nombre de la campaña la incluye (por ejemplo "312").
+- Al elegir el agente solo aparece el botón **Hacer seguimiento**: lo hace en ese momento con todos los números (ganancia, gasto, ROAS, costo por venta, costo por chat, CPM, CTR, CTR de enlace y conversión de chat a venta), un veredicto y qué hacer.
+- **Seguimiento automático:** a las 9 a. m., 12 p. m., 4 p. m. y 10 p. m. (hora de Colombia), 10 minutos después de que Make trae los datos. Solo funciona con la oficina abierta en Claude; si la abres más tarde, lo hace apenas la abres. Los horarios se cambian en **Ajustes → Seguimiento de ventas**.
 - **Escenario de Make "Resumen de ventas (Oficina)"** (6647751):
-  - Corre cada 3 horas, de 9 de la mañana a 10 de la noche, hora de Colombia.
+  - Corre a las 9:00, 12:00, 16:00 y 22:00, hora de Colombia. Trae gasto, chats, impresiones, clics y clics en el enlace por campaña y por día.
   - Gasta unas 5 operaciones por corrida.
   - Guarda todo en `ventas-resumen.txt`, dentro de la carpeta `_investigaciones` de Drive.
   - Si el archivo tiene más de 40 minutos cuando pides un reporte, la oficina lo actualiza antes de calcular.

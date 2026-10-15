@@ -349,6 +349,8 @@ select{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:10px;padd
 .drive-set h4{font-family:var(--display);font-size:16px;margin:0 0 8px}
 .drive-set p{margin:6px 0 0;font-size:13.5px;color:var(--muted)}
 .drive-set a{color:var(--ink);font-weight:700}
+.composer.modo-seg .no-seg{display:none!important}
+.seg-auto{margin:8px 0 10px;font-size:13px;color:var(--muted)}
 .gasto-row{display:flex;gap:6px;align-items:center;margin-top:6px}
 .gasto-row input,.gasto-row select{border:1.5px solid var(--line);border-radius:8px;padding:5px 7px;background:var(--panel-2);color:var(--ink);font:inherit;font-size:13.5px;min-width:0}
 .gasto-row input[data-g="nombre"]{flex:1}
@@ -419,7 +421,7 @@ select{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:10px;padd
       <div class="composer" id="composer">
         <h2>Nueva tarea</h2>
         <div class="chips" id="deptChips" role="group" aria-label="Departamento"></div>
-        <textarea id="taskTxt" placeholder="¿Qué necesitas? Por ejemplo: guion de un reel para vender mi curso de Excel"></textarea>
+        <textarea class="no-seg" id="taskTxt" placeholder="¿Qué necesitas? Por ejemplo: guion de un reel para vender mi curso de Excel"></textarea>
         <div class="row">
           <select id="agentSel" aria-label="Agente"></select>
         </div>
@@ -474,8 +476,13 @@ select{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:10px;padd
           <div class="chain" id="invOtros" style="margin:6px 0 0"></div>
           <label>Lo que tú ya viste<textarea data-i="notas" style="min-height:54px" placeholder="Opcional. Pega aquí lo que viste en Hotmart, TikTok o anuncios de la competencia. El investigador lo usa como una fuente más."></textarea></label>
         </div>
-        <div class="ideas" id="ideas"></div>
-        <div class="opts">
+        <div class="brief" id="seg" hidden>
+          <div class="brief-h">Seguimiento de ventas <span>Trae en este momento tus ventas de la hoja y el gasto de Meta, y te dice cuánto llevas de ganancia, cómo van el CPM, el CTR, el costo por chat y por venta, y qué hacer.</span></div>
+          <p class="seg-auto" id="segAuto"></p>
+          <div class="row end"><button class="btn-main" id="segBtn">Hacer seguimiento</button></div>
+        </div>
+        <div class="ideas no-seg" id="ideas"></div>
+        <div class="opts no-seg">
           <label for="repSel">Repetir</label>
           <select id="repSel">
             <option value="una">Solo una vez</option>
@@ -485,17 +492,17 @@ select{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:10px;padd
           </select>
           <span id="horaWrap" hidden>desde las <input type="time" id="repHora" value="08:00" aria-label="Hora de inicio"> hasta las <input type="time" id="repFin" value="22:00" aria-label="Hora de fin"></span>
         </div>
-        <div class="opts">
+        <div class="opts no-seg">
           <label for="repVeces">Cantidad</label>
           <input type="number" id="repVeces" min="1" max="10" value="1" style="width:64px;border:1.5px solid var(--line);border-radius:8px;padding:5px 7px;background:var(--panel-2)">
           <span id="vecesTxt">vez</span>
         </div>
-        <div class="dias" id="repDias" hidden></div>
-        <input class="txt" id="repMes" placeholder="Días del mes, por ejemplo: 1, 15, 28" hidden>
-        <div id="pasos"></div>
-        <button class="btn-link" id="addPaso">+ Al terminar, pasar el resultado a otro agente</button>
+        <div class="dias no-seg" id="repDias" hidden></div>
+        <input class="txt no-seg" id="repMes" placeholder="Días del mes, por ejemplo: 1, 15, 28" hidden>
+        <div class="no-seg" id="pasos"></div>
+        <button class="btn-link no-seg" id="addPaso">+ Al terminar, pasar el resultado a otro agente</button>
         <div class="err" id="formErr" hidden></div>
-        <div class="row end"><button class="btn-main" id="addBtn" disabled>Asignar tarea</button></div>
+        <div class="row end no-seg"><button class="btn-main" id="addBtn" disabled>Asignar tarea</button></div>
         <div class="notice" id="notice" hidden></div>
       </div>
       <div class="status">
@@ -601,6 +608,9 @@ select{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:10px;padd
       <div id="gastosList"></div>
       <p><button type="button" class="gasto-add" id="gastoAdd">+ Agregar gasto</button> Dólar a <input type="text" id="ventasTasa" inputmode="numeric" style="width:90px;border:1.5px solid var(--line);border-radius:8px;padding:4px 6px;background:var(--panel-2)"> pesos</p>
       <p id="gastosTot"></p>
+      <label class="sw" style="margin-top:8px"><input type="checkbox" id="segAutoOn"> Hacer el seguimiento automáticamente a estas horas (hora de Colombia):</label>
+      <p><input type="text" id="segHoras" style="width:100%;border:1.5px solid var(--line);border-radius:8px;padding:5px 7px;background:var(--panel-2)" placeholder="9:00, 12:00, 16:00, 22:00"></p>
+      <p>Solo funciona mientras la oficina esté abierta en Claude. Si la abres después de una de esas horas, lo hace apenas la abres.</p>
       <p>Escenario de Make "Resumen de ventas (Oficina)": <input type="text" id="ventasEsc" inputmode="numeric" style="width:110px;border:1.5px solid var(--line);border-radius:8px;padding:4px 6px;background:var(--panel-2)"> Lee tu hoja de ventas (sin modificarla) y el gasto de Meta cada 3 horas, de 9 de la mañana a 10 de la noche.</p>
     </div>
     <div class="drive-set">
@@ -677,7 +687,7 @@ function compactarTareas(){
   store.tareas.forEach((t,i)=>{ if(fin(t) && t.entrada && (!t.origen || store.tareas.some(x=>x.id===t.origen.id))) delete t.entrada; if(i>=25 && fin(t) && t.resultado && t.resultado.length>6200) t.resultado = t.resultado.slice(0,6000) + "\n\n… (el resultado completo quedó guardado en Google Drive)"; });
   while(store.tareas.length>70){ const i = store.tareas.map(fin).lastIndexOf(true); if(i<0) break; store.tareas.splice(i,1); }
 }
-function datosOficina(){ return { tareas: store.tareas.map(t=>({...t})), negocio: store.negocio, rutinas: store.rutinas.map(r=>({...r})), drive: driveCfg(), avisos: avisosCfg(), img: imgCfg(), equipo: store.equipo || {}, briefReel: store.briefReel || null, planUlt: store.planUlt || null, calCfg: calCfg(), invCfg: invCfg(), invUlt: store.invUlt || null, productos: store.productos || [], ventasCfg: ventasCfg(), ventasIni: !!store.ventasIni }; }
+function datosOficina(){ return { tareas: store.tareas.map(t=>({...t})), negocio: store.negocio, rutinas: store.rutinas.map(r=>({...r})), drive: driveCfg(), avisos: avisosCfg(), img: imgCfg(), equipo: store.equipo || {}, briefReel: store.briefReel || null, planUlt: store.planUlt || null, calCfg: calCfg(), invCfg: invCfg(), invUlt: store.invUlt || null, productos: store.productos || [], ventasCfg: ventasCfg(), ventasIni: Number(store.ventasIni) || 0 }; }
 async function saveCal(){
   if(savingCal){ pendingCal = true; return; }
   savingCal = true;
@@ -705,7 +715,7 @@ async function initStorage(){
       const snap = await docRef.get();
       const crudo = snap && snap.data && snap.data();
       const data = crudo ? JSON.parse(JSON.stringify(crudo)) : null;
-      if(data) store = { tareas: Array.isArray(data.tareas)?data.tareas:[], negocio: data.negocio||"", rutinas: Array.isArray(data.rutinas)?data.rutinas:[], drive: data.drive || { activo:true, carpetas:{} }, avisos: data.avisos || { sonido:true }, img: data.img || { auto:true, max:4 }, equipo: data.equipo || {}, briefReel: data.briefReel || null, planUlt: data.planUlt || null, calCfg: data.calCfg || null, invCfg: data.invCfg || {}, invUlt: data.invUlt || null, productos: Array.isArray(data.productos) ? data.productos : [], ventasCfg: data.ventasCfg || null, ventasIni: !!data.ventasIni };
+      if(data) store = { tareas: Array.isArray(data.tareas)?data.tareas:[], negocio: data.negocio||"", rutinas: Array.isArray(data.rutinas)?data.rutinas:[], drive: data.drive || { activo:true, carpetas:{} }, avisos: data.avisos || { sonido:true }, img: data.img || { auto:true, max:4 }, equipo: data.equipo || {}, briefReel: data.briefReel || null, planUlt: data.planUlt || null, calCfg: data.calCfg || null, invCfg: data.invCfg || {}, invUlt: data.invUlt || null, productos: Array.isArray(data.productos) ? data.productos : [], ventasCfg: data.ventasCfg || null, ventasIni: Number(data.ventasIni) || 0 };
       try{ const cs = calRef ? await calRef.get() : null; const cd = cs && cs.data && cs.data(); store.calendario = cd && Array.isArray(cd.items) ? JSON.parse(JSON.stringify(cd.items)) : []; }catch(e){ store.calendario = []; }
     }else{
       const raw = localStorage.getItem("oficina-agentes");
@@ -719,7 +729,7 @@ async function initStorage(){
   store.calendario.forEach(e=>{ if(e.estado==="planeado") e.estado = "pendiente"; if(e.estado==="produccion" && !store.tareas.some(x=>x.calId===e.id && (x.estado==="cola"||x.estado==="trabajando"||x.estado==="pausada"||x.estado==="lista"))) e.estado = "aprobado"; });
   store.tareas.forEach(t=>{ if(t.estado==="trabajando"||t.estado==="cola"){ t.estado="pausada"; } if(t.drive && t.drive.estado==="guardando") t.drive = { estado:"error", error:"El guardado se interrumpió al cerrar la página." }; if(t.imagenes && (t.imagenes.estado==="generando" || t.imagenes.estado==="pendiente")) t.imagenes.estado = "pausado"; });
   driveCfg();
-  const nuevasVentas = !store.ventasIni; instrVentasIniciales();
+  const nuevasVentas = instrVentasIniciales();
   aplicarEquipo();
   cargado = true;
   if(nuevasVentas) save();
@@ -1237,6 +1247,23 @@ function ventasCfg(){
 }
 const esSeguimiento = (dept, ag) => dept==="ventas" && String(ag)==="0";
 const esCopyVentas = (dept, ag) => dept==="ventas" && String(ag)==="1";
+const HORAS_SEG = ["09:00","12:00","16:00","22:00"];
+const horasSeg = (c = ventasCfg()) => (Array.isArray(c.horas) ? c.horas : HORAS_SEG).filter(h=>/^\d{2}:\d{2}$/.test(h)).sort();
+const horaBonita = h => { const [H, M] = h.split(":").map(Number); return `${H%12 || 12}${M ? ":"+String(M).padStart(2,"0") : ""} ${H<12 ? "a. m." : "p. m."}`; };
+function leerHoras(txt){ return [...new Set((String(txt).match(/\d{1,2}(:\d{2})?\s*(a\.?\s*m\.?|p\.?\s*m\.?|am|pm)?/gi) || []).map(x=>{ const m = x.match(/(\d{1,2})(?::(\d{2}))?\s*(a|p)?/i); let H = Number(m[1]), M = Number(m[2]||0); if(m[3] && /p/i.test(m[3]) && H<12) H += 12; if(m[3] && /a/i.test(m[3]) && H===12) H = 0; return H<24 && M<60 ? `${String(H).padStart(2,"0")}:${String(M).padStart(2,"0")}` : null; }).filter(Boolean))].sort(); }
+function revisarSeguimientoAuto(){
+  const c = ventasCfg(); if(c.auto===false) return false;
+  const ahora = new Date(), hoy = hoyBog(), hm = ahora.toLocaleTimeString("en-GB", { timeZone:"America/Bogota", hour:"2-digit", minute:"2-digit" });
+  const aMin = h => { const [H, M] = h.split(":").map(Number); return H*60+M; };
+  // Espera 10 minutos después de cada hora para que Make ya haya traído los datos nuevos
+  const toca = horasSeg(c).filter(h=>aMin(hm) >= aMin(h)+10 && aMin(hm) < aMin(h)+180).pop();
+  if(!toca) return false;
+  const clave = `${hoy} ${toca}`;
+  if(c.ultAuto && c.ultAuto >= clave) return false;
+  c.ultAuto = clave;
+  hacerSeguimiento(true);
+  return true;
+}
 const gastoCop = (g, tasa) => (Number(g.monto)||0) * (g.moneda==="USD" ? (Number(tasa)||VENTAS_DEF.tasa) : 1);
 const gastosMes = (c = ventasCfg()) => c.gastos.reduce((s,g)=>s + gastoCop(g, c.tasa), 0);
 const pesos = n => (n<0 ? "-$" : "$") + Math.round(Math.abs(n)).toLocaleString("es-CO");
@@ -1255,11 +1282,13 @@ function fechaHoja(s){
 }
 function parsearVentas(txt){
   const meta = [], ventas = [];
-  const iM = txt.indexOf("===META==="), iH = txt.indexOf("===HOJA===");
-  if(iM>=0) txt.slice(iM+10, iH>iM ? iH : undefined).split("\n").forEach(l=>{
+  // ===META2===: fecha|gasto|chats|impresiones|clics|clics en el enlace|campaña. ===META===: fecha|campaña|gasto|chats
+  const v2 = txt.includes("===META2==="), iM = txt.indexOf(v2 ? "===META2===" : "===META==="), iH = txt.indexOf("===HOJA===");
+  if(iM>=0) txt.slice(iM + (v2 ? 11 : 10), iH>iM ? iH : undefined).split("\n").forEach(l=>{
     const p = l.split("|"); if(p.length<4) return;
     const fecha = p[0].trim().slice(0,10); if(!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return;
-    meta.push({ fecha, campana: p.slice(1,-2).join("|").trim(), gasto: Number(p[p.length-2])||0, chats: Number(p[p.length-1])||0 });
+    if(v2) meta.push({ fecha, gasto: Number(p[1])||0, chats: Number(p[2])||0, impr: Number(p[3])||0, clics: Number(p[4])||0, enlace: Number(p[5])||0, campana: p.slice(6).join("|").trim() });
+    else meta.push({ fecha, campana: p.slice(1,-2).join("|").trim(), gasto: Number(p[p.length-2])||0, chats: Number(p[p.length-1])||0, impr:0, clics:0, enlace:0 });
   });
   let hoja = null; try{ hoja = iH>=0 ? JSON.parse(txt.slice(iH+10).trim()) : null; }catch(e){}
   ((hoja && hoja.sheets) || []).forEach(s=>{
@@ -1287,16 +1316,18 @@ function cursoDeCampana(nombre, cursos){
 }
 const lineaDeCampana = nombre => { const m = String(nombre).match(/(?:^|\D)(3\d{2})(?:\D|$)/); return m ? m[1] : ""; };
 function agruparVentas(datos, desde, hasta, cursos){
-  const r = { gasto:0, chats:0, n:0, ingresos:0, cursos:{}, lineas:{}, campanas:{} };
+  const nuevo = () => ({ gasto:0, chats:0, impr:0, clics:0, enlace:0, n:0, ingresos:0 });
+  const r = { ...nuevo(), cursos:{}, lineas:{}, campanas:{} };
   const canon = c => cursos.find(x=>norm(x)===norm(c)) || c;
-  const C = k => r.cursos[k] = r.cursos[k] || { gasto:0, chats:0, n:0, ingresos:0 };
-  const L = k => r.lineas[k] = r.lineas[k] || { gasto:0, chats:0, n:0, ingresos:0 };
+  const C = k => r.cursos[k] = r.cursos[k] || nuevo();
+  const L = k => r.lineas[k] = r.lineas[k] || nuevo();
+  const sumar = (a, m) => { a.gasto += m.gasto; a.chats += m.chats; a.impr += m.impr||0; a.clics += m.clics||0; a.enlace += m.enlace||0; };
   datos.meta.forEach(m=>{
     if(m.fecha<desde || m.fecha>hasta) return;
-    r.gasto += m.gasto; r.chats += m.chats;
-    const c = C(canon(cursoDeCampana(m.campana, cursos))); c.gasto += m.gasto; c.chats += m.chats;
-    const cp = r.campanas[m.campana] = r.campanas[m.campana] || { gasto:0, chats:0 }; cp.gasto += m.gasto; cp.chats += m.chats;
-    const l = lineaDeCampana(m.campana) || "Campañas sin línea en el nombre"; L(l).gasto += m.gasto; L(l).chats += m.chats;
+    sumar(r, m);
+    sumar(C(canon(cursoDeCampana(m.campana, cursos))), m);
+    sumar(r.campanas[m.campana] = r.campanas[m.campana] || nuevo(), m);
+    sumar(L(lineaDeCampana(m.campana) || "Campañas sin línea en el nombre"), m);
   });
   datos.ventas.forEach(v=>{
     if(v.fecha<desde || v.fecha>hasta) return;
@@ -1306,8 +1337,13 @@ function agruparVentas(datos, desde, hasta, cursos){
   });
   return r;
 }
+function metricasMeta(x){
+  const m = [`chats iniciados ${x.chats}`, `costo por chat ${x.chats ? pesos(x.gasto/x.chats) : "sin chats"}`];
+  if(x.impr) m.push(`impresiones ${Math.round(x.impr).toLocaleString("es-CO")}`, `CPM ${pesos(x.gasto/x.impr*1000)}`, `CTR ${(x.clics/x.impr*100).toFixed(2)}%`, `CTR de enlace ${(x.enlace/x.impr*100).toFixed(2)}%`, `CPC ${x.clics ? pesos(x.gasto/x.clics) : "sin clics"}`);
+  return m;
+}
 function filaVentas(nombre, x, op){
-  const partes = [`${x.n} ventas`, `ingresos ${pesos(x.ingresos)}`, `publicidad ${pesos(x.gasto)}`, `ROAS ${x.gasto ? (x.ingresos/x.gasto).toFixed(2) : "sin gasto"}`, `costo por venta ${!x.n ? "sin ventas" : x.gasto ? pesos(x.gasto/x.n) : "sin gasto"}`, `chats iniciados ${x.chats}`, `conversión chat a venta ${x.chats && x.chats>=x.n ? Math.round(x.n/x.chats*100)+"%" : "sin datos"}`];
+  const partes = [`${x.n} ventas`, `ingresos ${pesos(x.ingresos)}`, `publicidad ${pesos(x.gasto)}`, `ROAS ${x.gasto ? (x.ingresos/x.gasto).toFixed(2) : "sin gasto"}`, `costo por venta ${!x.n ? "sin ventas" : x.gasto ? pesos(x.gasto/x.n) : "sin gasto"}`, ...metricasMeta(x), `conversión chat a venta ${x.chats && x.chats>=x.n ? Math.round(x.n/x.chats*100)+"%" : "sin datos"}`];
   if(op!=null) partes.push(`gastos operativos ${pesos(op)}`, `GANANCIA ${pesos(x.ingresos - x.gasto - op)}`);
   else partes.push(`ganancia antes de gastos operativos ${pesos(x.ingresos - x.gasto)}`);
   return `- ${nombre}: ${partes.join(" · ")}`;
@@ -1319,6 +1355,7 @@ function textoVentas(datos, actualizado){
   const cursos = [...new Set([...datos.ventas.map(v=>v.curso), ...(store.productos||[]).filter(p=>p.estado==="aprobado").map(p=>p.nombre)])].filter(Boolean);
   const per = (desde, hasta) => agruparVentas(datos, desde, hasta, cursos);
   const hoyR = per(hoy, hoy), ayer = per(diaMenos(hoy,1), diaMenos(hoy,1)), sem = per(diaMenos(hoy,6), hoy), mes = per(mesIni, hoy);
+  const campanasTxt = per => Object.entries(per.campanas).filter(([,x])=>x.gasto>0).sort((a,b)=>b[1].gasto-a[1].gasto).map(([k,x])=>`- ${k}: gasto ${pesos(x.gasto)} · ${metricasMeta(x).join(" · ")} · curso asignado: ${cursoDeCampana(k, cursos)}`).join("\n") || "- Sin campañas con gasto";
   const lista = (obj, op) => Object.entries(obj).sort((a,b)=>(b[1].ingresos+b[1].gasto)-(a[1].ingresos+a[1].gasto)).map(([k,x])=>filaVentas(k, x, op)).join("\n") || "- Sin datos";
   let s = `Datos actualizados: ${actualizado || "sin fecha"} (hora de Colombia). Hoy es ${hoy}.
 Gastos operativos del mes: ${pesos(opMes)} (${c.gastos.map(g=>`${g.nombre} ${g.moneda==="USD" ? g.monto+" USD" : pesos(g.monto)}`).join(", ")}; dólar a ${pesos(c.tasa)}). Repartidos por día: ${pesos(opDia)} diarios.
@@ -1350,8 +1387,14 @@ ${lista(sem.lineas)}
 POR LÍNEA DE WHATSAPP, ESTE MES:
 ${lista(mes.lineas)}
 
-CAMPAÑAS DE LOS ÚLTIMOS 7 DÍAS (gasto y chats iniciados):
-${Object.entries(sem.campanas).sort((a,b)=>b[1].gasto-a[1].gasto).map(([k,x])=>`- ${k}: gasto ${pesos(x.gasto)} · chats ${x.chats} · costo por chat ${x.chats ? pesos(x.gasto/x.chats) : "sin chats"} · curso asignado: ${cursoDeCampana(k, cursos)}`).join("\n") || "- Sin campañas con gasto"}`;
+CAMPAÑAS DE HOY:
+${campanasTxt(hoyR)}
+
+CAMPAÑAS DE AYER:
+${campanasTxt(ayer)}
+
+CAMPAÑAS DE LOS ÚLTIMOS 7 DÍAS:
+${campanasTxt(sem)}`;
   return { texto: s, mes, opDia, di };
 }
 async function leerResumenVentas(t, signal){
@@ -1403,15 +1446,17 @@ ${s.resultado.slice(0,6000)}
 ` : "";
 }
 const INSTR_VENTAS = {
-  "ventas/0": `Eres el analista de resultados del negocio. Trabajas solo con los datos calculados que te pasa la oficina; nunca inventes cifras.
-Cada reporte empieza con una línea grande: "Este mes llevas $X de ganancia" (ventas menos publicidad de Meta menos gastos operativos).
-Luego, en este orden:
-1. Hoy y ayer: ventas, ingresos, publicidad, ROAS y ganancia.
-2. Últimos 7 días en una tabla corta por día.
-3. Por curso: ventas, ingresos, publicidad, ROAS, costo por venta, chats y conversión de chat a venta.
-4. Por línea de WhatsApp.
-5. Alertas: días o campañas que pierden plata, campañas que gastan sin ventas, cursos con costo por venta alto y conversión de chat a venta que baja.
-6. Tres recomendaciones concretas (escalar, pausar, duplicar campaña o mejorar los textos de WhatsApp) explicando con qué número lo justificas.
+  "ventas/0": `Eres el analista de resultados del negocio. Trabajas solo con los datos calculados que te pasa la oficina; nunca inventes cifras. Primero van los números y después lo que significan.
+Formato del reporte:
+1. Una línea grande: "Este mes llevas $X de ganancia" (ventas menos publicidad de Meta menos gastos operativos) y cuánto llevas gastado en Meta este mes.
+2. HOY hasta ahora y AYER: ventas, ingresos, gasto en Meta, ganancia, ROAS, costo por venta, costo por chat, CPM, CTR, CTR de enlace y conversión de chat a venta. Ponlos en una tabla corta.
+3. ÚLTIMOS 7 DÍAS y ESTE MES con los mismos números.
+4. Tabla día por día de los últimos 7 días: ventas, ingresos, gasto, ROAS y ganancia.
+5. Campañas de hoy y de los últimos 7 días: gasto, chats, costo por chat, CPM, CTR y a qué curso pertenece.
+6. Por curso y por línea de WhatsApp.
+7. VEREDICTO: en 2 o 3 frases, cómo va el negocio en este momento (bien, regular o mal) y por qué, comparando hoy con ayer y con el promedio de los últimos 7 días.
+8. QUÉ HACER AHORA: 3 acciones concretas (escalar, pausar, duplicar una campaña, cambiar el creativo o mejorar los textos de WhatsApp), cada una con el número que la justifica.
+Alertas que debes marcar: días o campañas que pierden plata, campañas que gastan sin chats, CPM que sube o CTR que baja frente a los últimos 7 días, costo por venta alto y conversión de chat a venta que baja.
 Usa pesos colombianos y cifras redondeadas. Si una campaña no se pudo asignar a un curso, dilo para que el dueño le cambie el nombre.`,
   "ventas/1": `Escribes los textos que se envían por WhatsApp a quien escribe desde un anuncio. Entrega siempre, en este orden y bien separados:
 1. TEXTO DE INICIO: título del curso, qué es (1 o 2 frases), beneficios (lista corta) y precio.
@@ -1422,10 +1467,15 @@ Tono cercano y colombiano, tuteo, frases cortas y emojis moderados. Si no tienes
 Si recibes el reporte del Seguimiento de ventas, termina con MEJORAS DE CONVERSIÓN: de 3 a 5 cambios concretos a estos textos basados en los números (conversión de chat a venta, costo por venta, cursos que más venden) y qué número esperas mejorar con cada uno.`
 };
 function instrVentasIniciales(){
-  if(store.ventasIni) return;
+  const v = Number(store.ventasIni) || 0; if(v>=2) return false;
   store.equipo = store.equipo || {};
-  Object.entries(INSTR_VENTAS).forEach(([k,v])=>{ const o = store.equipo[k] || {}; if(!(o.instrucciones && o.instrucciones.trim())) store.equipo[k] = { ...o, instrucciones: v }; });
-  store.ventasIni = true;
+  Object.entries(INSTR_VENTAS).forEach(([k,txt])=>{
+    const o = store.equipo[k] || {}, prev = String(o.instrucciones || "").trim();
+    // Versión 2: reemplaza las instrucciones del Seguimiento solo si siguen siendo las de la versión 1
+    if(!prev || (k==="ventas/0" && prev.startsWith("Eres el analista de resultados del negocio. Trabajas solo con los datos calculados que te pasa la oficina; nunca inventes cifras.\nCada reporte"))) store.equipo[k] = { ...o, instrucciones: txt };
+  });
+  store.ventasIni = 2;
+  return true;
 }
 
 /* ---------- Investigación de productos (Perplexity y Apify vía Make) ---------- */
@@ -1930,6 +1980,7 @@ function revisarRutinas(){
   let cambio = false;
   store.rutinas.forEach(r=>{ if(r.activa && r.ultima!==hoy && tocaHoy(r.freq, now) && hhmm >= (r.freq.hora||"00:00") && (!r.freq.horaFin || hhmm <= r.freq.horaFin)){ lanzarRutina(r); cambio = true; } });
   if(revisarCalendario()) cambio = true;
+  if(revisarSeguimientoAuto()) cambio = true;
   if(cambio){ save(); renderAll(); }
 }
 setInterval(revisarRutinas, 60000);
@@ -2030,13 +2081,27 @@ function toggleInv(){
   if(show && !antes) llenarInv(store.invUlt);
   if(show) $("taskTxt").placeholder = "Opcional: qué quieres que busque. Ej: cursos que se puedan vender a mamás que quieren un ingreso extra";
 }
+function toggleSeg(){
+  const show = esSeguimiento(deptSel, $("agentSel").value);
+  $("seg").hidden = !show; $("composer").classList.toggle("modo-seg", show);
+  if(show) pintarSegAuto();
+}
+function pintarSegAuto(){
+  const c = ventasCfg(), h = horasSeg(c);
+  $("segAuto").innerHTML = c.auto!==false && h.length ? `También lo hace solo a las <b>${listaY(h.map(horaBonita))}</b> (hora de Colombia), siempre que la oficina esté abierta en Claude. Si la abres después de una de esas horas, lo hace apenas la abres. Cambia los horarios en Ajustes.` : `El seguimiento automático está apagado. Actívalo en Ajustes.`;
+}
+function hacerSeguimiento(auto){
+  if(store.tareas.some(t=>esSeguimiento(t.dept, t.agente) && (t.estado==="cola" || t.estado==="trabajando"))){ if(!auto) toast("Ya hay un seguimiento en curso."); return null; }
+  const ahora = new Date().toLocaleString("es-CO", { timeZone:"America/Bogota", day:"numeric", month:"short", hour:"numeric", minute:"2-digit" });
+  return nuevaTarea(`${auto ? "Seguimiento automático" : "Seguimiento de ventas"} · ${ahora}`, "ventas", 0, auto ? { auto:true } : {});
+}
 function toggleBrief(){
   const show = esGuionista(deptSel, $("agentSel").value);
   const el = $("brief"), antes = !el.hidden;
   el.hidden = !show;
   if(show && !antes){ llenarBrief(store.briefReel || {}); fotosForm.brief = ((store.briefReel||{}).fotos || []).slice(); renderFotos("brief"); }
   $("taskTxt").placeholder = show ? "Opcional: idea o ángulo del reel. Ej: mostrar el antes y después de unas uñas hechas en casa" : "¿Qué necesitas? Por ejemplo: guion de un reel para vender mi curso de Excel";
-  togglePlan(); toggleInv();
+  togglePlan(); toggleInv(); toggleSeg();
 }
 function renderChips(){
   $("deptChips").innerHTML = DEPTS.map(d=>`<button class="chip" style="--c:var(${d.color})" data-d="${d.id}" aria-pressed="${d.id===deptSel}"><i></i>${d.corto}</button>`).join("");
@@ -2312,6 +2377,14 @@ async function extraerProductos(t){
   }catch(e){ t.productos = { estado:"error" }; }
   save(); renderAll();
 }
+function toast(txt){
+  const el = document.createElement("div");
+  el.className = "toast"; el.style.setProperty("--c", css("--ventas"));
+  el.innerHTML = `<div><b>${esc(txt)}</b></div><button class="tx" aria-label="Cerrar aviso">×</button>`;
+  el.querySelector(".tx").onclick = ()=>el.remove();
+  const cont = $("toasts"); cont.appendChild(el); while(cont.children.length>3) cont.firstElementChild.remove();
+  setTimeout(()=>el.remove(), 6000);
+}
 function avisoProductos(n){
   const el = document.createElement("div");
   el.className = "toast"; el.style.setProperty("--c", css("--marketing"));
@@ -2448,10 +2521,11 @@ $("gastosList").addEventListener("change", e=>{ const row = e.target.closest(".g
 $("gastosList").addEventListener("click", e=>{ if(!e.target.closest("[data-gdel]")) return; gastosDraft.splice(Number(e.target.closest(".gasto-row").dataset.i), 1); renderGastos(); });
 $("gastoAdd").onclick = ()=>{ gastosDraft.push({ nombre:"", monto:0, moneda:"COP" }); renderGastos(); const ins = $("gastosList").querySelectorAll('input[data-g="nombre"]'); ins[ins.length-1].focus(); };
 $("ventasTasa").addEventListener("input", totalGastos);
-function abrirNegocio(){ { const c = ventasCfg(); gastosDraft = c.gastos.map(g=>({...g})); $("ventasTasa").value = c.tasa; $("ventasEsc").value = c.escenario; renderGastos(); } $("invPer").value = escInv("per") || ""; $("invPedir").value = escInv("pedir") || ""; $("invTraer").value = escInv("traer") || ""; $("bizTxt").value = store.negocio; const cfg = driveCfg(); $("driveOn").checked = cfg.activo; $("imgOn").checked = imgCfg().auto; $("imgMax").value = imgCfg().max; $("imgFmt").value = imgCfg().formato; $("imgEsc").value = imgCfg().escenario || ESCENARIO_DEF; $("impMsg").textContent = ""; $("sonidoOn").checked = avisosCfg().sonido; $("driveLink").innerHTML = cfg.raizUrl ? `<a href="${esc(cfg.raizUrl)}" target="_blank" rel="noopener">Abrir la carpeta</a>` : ""; $("bizDlg").classList.add("open"); $("bizTxt").focus(); }
+function abrirNegocio(){ { const c = ventasCfg(); gastosDraft = c.gastos.map(g=>({...g})); $("ventasTasa").value = c.tasa; $("ventasEsc").value = c.escenario; $("segAutoOn").checked = c.auto!==false; $("segHoras").value = horasSeg(c).join(", "); renderGastos(); } $("invPer").value = escInv("per") || ""; $("invPedir").value = escInv("pedir") || ""; $("invTraer").value = escInv("traer") || ""; $("bizTxt").value = store.negocio; const cfg = driveCfg(); $("driveOn").checked = cfg.activo; $("imgOn").checked = imgCfg().auto; $("imgMax").value = imgCfg().max; $("imgFmt").value = imgCfg().formato; $("imgEsc").value = imgCfg().escenario || ESCENARIO_DEF; $("impMsg").textContent = ""; $("sonidoOn").checked = avisosCfg().sonido; $("driveLink").innerHTML = cfg.raizUrl ? `<a href="${esc(cfg.raizUrl)}" target="_blank" rel="noopener">Abrir la carpeta</a>` : ""; $("bizDlg").classList.add("open"); $("bizTxt").focus(); }
 
 /* ---------- Eventos ---------- */
 $("deptChips").onclick = e=>{ const b=e.target.closest("[data-d]"); if(b){ deptSel=b.dataset.d; renderChips(); actualizarEscena(); if(escenaLista) enfocarSala(deptSel); } };
+$("segBtn").onclick = ()=>{ if(sampleChecked && !sample){ $("formErr").textContent = "Los agentes no están conectados con Claude. Toca Reconectar abajo y acepta el permiso."; $("formErr").hidden = false; reconectar(); return; } const t = hacerSeguimiento(false); if(t) abrir(t.id); };
 $("agentSel").onchange = e=>{ toggleBrief(); if(!escenaLista) return; const v = e.target.value; if(v==="auto") enfocarSala(deptSel); else enfocarAgente(deptSel, Number(v)); };
 $("ideas").onclick = e=>{ const b=e.target.closest(".idea"); if(b){ $("taskTxt").value=b.textContent; updateComposer(); $("taskTxt").focus(); } };
 $("taskTxt").oninput = updateComposer;
@@ -2658,7 +2732,7 @@ $("eqSave").onclick = ()=>{
   renderChips(); renderPasos(); renderAll(); renderEqList();
   $("eqOk").hidden = false;
 };
-$("bizSave").onclick = ()=>{ store.negocio=$("bizTxt").value; driveCfg().activo = $("driveOn").checked; imgCfg().auto = $("imgOn").checked; imgCfg().max = Math.min(10, Math.max(1, Number($("imgMax").value)||4)); imgCfg().formato = $("imgFmt").value; { const e = Number(String($("imgEsc").value).replace(/\D/g,"")); if(e) imgCfg().escenario = e; } avisosCfg().sonido = $("sonidoOn").checked; [["per","invPer"],["pedir","invPedir"],["traer","invTraer"]].forEach(([k,id])=>{ const e = Number(String($(id).value).replace(/\D/g,"")); if(e) invCfg()[k] = e; }); { const c = ventasCfg(); c.gastos = gastosDraft.filter(g=>String(g.nombre).trim() && Number(g.monto)>0).map(g=>({ nombre:String(g.nombre).trim(), monto:Number(g.monto), moneda:g.moneda==="USD"?"USD":"COP" })); const ta = Number(String($("ventasTasa").value).replace(/\D/g,"")); if(ta) c.tasa = ta; const ve = Number(String($("ventasEsc").value).replace(/\D/g,"")); if(ve) c.escenario = ve; } if(avisosCfg().sonido) sonar(true); $("bizDlg").classList.remove("open"); save(); renderAll(); };
+$("bizSave").onclick = ()=>{ store.negocio=$("bizTxt").value; driveCfg().activo = $("driveOn").checked; imgCfg().auto = $("imgOn").checked; imgCfg().max = Math.min(10, Math.max(1, Number($("imgMax").value)||4)); imgCfg().formato = $("imgFmt").value; { const e = Number(String($("imgEsc").value).replace(/\D/g,"")); if(e) imgCfg().escenario = e; } avisosCfg().sonido = $("sonidoOn").checked; [["per","invPer"],["pedir","invPedir"],["traer","invTraer"]].forEach(([k,id])=>{ const e = Number(String($(id).value).replace(/\D/g,"")); if(e) invCfg()[k] = e; }); { const c = ventasCfg(); c.gastos = gastosDraft.filter(g=>String(g.nombre).trim() && Number(g.monto)>0).map(g=>({ nombre:String(g.nombre).trim(), monto:Number(g.monto), moneda:g.moneda==="USD"?"USD":"COP" })); const ta = Number(String($("ventasTasa").value).replace(/\D/g,"")); if(ta) c.tasa = ta; const ve = Number(String($("ventasEsc").value).replace(/\D/g,"")); if(ve) c.escenario = ve; c.auto = $("segAutoOn").checked; const hs = leerHoras($("segHoras").value); if(hs.length) c.horas = hs; if(!$("seg").hidden) pintarSegAuto(); } if(avisosCfg().sonido) sonar(true); $("bizDlg").classList.remove("open"); save(); renderAll(); };
 
 /* ---------- Escena 3D ---------- */
 const stage = $("stage"), labelsEl = $("labels");
