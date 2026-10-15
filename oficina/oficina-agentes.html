@@ -42,6 +42,17 @@ header.top{display:flex;align-items:center;gap:16px;padding:12px 20px;border-bot
 .brand{font-family:var(--display);font-weight:800;font-size:22px;letter-spacing:-.02em;margin:0;white-space:nowrap}
 .brand small{font-family:var(--body);font-weight:500;font-size:13px;color:var(--muted);letter-spacing:0;margin-left:8px}
 .top .spacer{flex:1}
+.topnav{display:flex;align-items:center;gap:8px}
+.menu-btn{display:none;position:relative;width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:transparent;place-items:center;padding:0}
+.menu-btn svg{width:22px;height:22px}
+.menu-btn i{position:absolute;top:6px;right:6px;width:9px;height:9px;border-radius:50%;background:var(--marketing);box-shadow:0 0 0 2px var(--panel)}
+@media (max-width:760px){
+  header.top{position:relative;gap:10px}
+  .menu-btn{display:grid}
+  .topnav{display:none;position:absolute;top:calc(100% + 6px);right:12px;z-index:25;flex-direction:column;align-items:stretch;gap:4px;min-width:200px;padding:8px;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 40px -16px rgba(10,15,30,.45)}
+  .topnav.open{display:flex}
+  .topnav .btn-ghost{border:0;border-radius:10px;text-align:left;padding:11px 14px;font-size:15px;display:flex;align-items:center;justify-content:space-between}
+}
 .live{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);white-space:nowrap;border:0;background:none;padding:4px 6px;border-radius:8px}
 .live:hover{background:var(--panel-2)}
 .live i{width:8px;height:8px;border-radius:50%;background:var(--muted)}
@@ -372,10 +383,13 @@ select{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:10px;padd
     <h1 class="brand">Oficina de agentes<small>14 agentes para tus cursos digitales</small></h1>
     <div class="spacer"></div>
     <button class="live" id="live" title="Reconectar con Claude"><i></i><span id="liveTxt">Conectando…</span></button>
-    <button class="btn-ghost" id="eqBtn">Equipo</button>
-    <button class="btn-ghost" id="prodBtn">Productos<b class="cal-badge" id="prodBadge" hidden></b></button>
-    <button class="btn-ghost" id="calBtn">Calendario<b class="cal-badge" id="calBadge" hidden></b></button>
-    <button class="btn-ghost" id="bizBtn">Ajustes</button>
+    <button class="menu-btn" id="menuBtn" aria-label="Abrir menú" aria-expanded="false" aria-controls="topnav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg><i id="menuDot" hidden></i></button>
+    <nav class="topnav" id="topnav" aria-label="Secciones">
+      <button class="btn-ghost" id="eqBtn">Equipo</button>
+      <button class="btn-ghost" id="prodBtn">Productos<b class="cal-badge" id="prodBadge" hidden></b></button>
+      <button class="btn-ghost" id="calBtn">Calendario<b class="cal-badge" id="calBadge" hidden></b></button>
+      <button class="btn-ghost" id="bizBtn">Ajustes</button>
+    </nav>
   </header>
   <main>
     <section class="stage" id="stage" aria-label="Oficina en 3D">
@@ -1951,7 +1965,7 @@ function aprobarProducto(p, dias, porDia){
   save(); renderProductos(); renderAll();
 }
 function actualizarBadgeProd(){ const n = (store.productos || []).filter(p=>p.estado==="pendiente").length; const b = $("prodBadge"); if(!b) return; b.hidden = !n; b.textContent = n; }
-function actualizarBadge(){ actualizarBadgeProd(); const n = store.calendario.filter(e=>e.estado==="pendiente").length; const b = $("calBadge"); if(!b) return; b.hidden = !n; b.textContent = n; }
+function actualizarBadge(){ actualizarBadgeProd(); setTimeout(()=>{ const dot = $("menuDot"); if(dot) dot.hidden = $("prodBadge").hidden && $("calBadge").hidden; }); const n = store.calendario.filter(e=>e.estado==="pendiente").length; const b = $("calBadge"); if(!b) return; b.hidden = !n; b.textContent = n; }
 function renderAll(){ actualizarBadge(); if($("calView").classList.contains("open")) renderCalView(); renderList(); updateLive(); updateComposer(); actualizarEscena(); if(abierta) pintarDetalle(); }
 
 /* ---------- Detalle ---------- */
@@ -2044,6 +2058,11 @@ $("pasos").addEventListener("input", e=>{ const k = e.target.dataset.k; if(k==="
 $("pasos").addEventListener("change", e=>{ const k = e.target.dataset.k, i = Number(e.target.closest(".paso").dataset.i); if(!k || k==="texto") return;
   if(k==="dept"){ pasos[i].dept = e.target.value; pasos[i].agente = "auto"; renderPasos(); if(escenaLista) enfocarSala(pasos[i].dept); }
   else { pasos[i].agente = e.target.value; renderPasos(); if(escenaLista){ e.target.value==="auto" ? enfocarSala(pasos[i].dept) : enfocarAgente(pasos[i].dept, Number(e.target.value)); } } });
+function cerrarMenu(){ $("topnav").classList.remove("open"); $("menuBtn").setAttribute("aria-expanded","false"); }
+$("menuBtn").onclick = e=>{ e.stopPropagation(); const abierto = $("topnav").classList.toggle("open"); $("menuBtn").setAttribute("aria-expanded", String(abierto)); };
+$("topnav").addEventListener("click", e=>{ if(e.target.closest("button")) cerrarMenu(); });
+document.addEventListener("click", e=>{ if(!e.target.closest("#topnav") && !e.target.closest("#menuBtn")) cerrarMenu(); });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") cerrarMenu(); });
 $("calBtn").onclick = ()=>abrirCalendario();
 $("prodBtn").onclick = ()=>abrirProductos();
 $("prodTabs").onclick = e=>{ const b = e.target.closest("[data-pf]"); if(b){ prodFiltro = b.dataset.pf; renderProductos(); } };
