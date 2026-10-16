@@ -2431,7 +2431,7 @@ function botonesCal(e){
   const tarea = e.tareaId && store.tareas.some(x=>x.id===e.tareaId);
   const b = [];
   if(e.estado==="pendiente"){ b.push(`<button class="ok" data-cap="${e.id}">Aprobar</button>`, `<button data-crech="${e.id}">Rechazar</button>`); }
-  if(e.estado==="aprobado" || e.estado==="error") b.push(`<button data-cprod="${e.id}">${e.estado==="error" ? "Producir de nuevo" : "Producir ahora"}</button>`);
+  if(e.estado==="aprobado" || e.estado==="error" || (e.estado==="listo" && !tarea)) b.push(`<button data-cprod="${e.id}">${e.estado==="aprobado" ? "Producir ahora" : "Producir de nuevo"}</button>`);
   if(e.estado==="rechazado") b.push(`<button data-crest="${e.id}">Restaurar</button>`);
   if(tarea) b.push(`<button data-cver="${e.tareaId}">Ver guion</button>`);
   if(e.estado!=="produccion" && e.estado!=="listo") b.push(`<button data-cedit="${e.id}">Editar</button>`);
