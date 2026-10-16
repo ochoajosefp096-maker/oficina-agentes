@@ -443,7 +443,7 @@ select{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:10px;padd
             <label>Duración<select data-b="duracion"><option>30 segundos</option><option selected>45 segundos</option><option>60 segundos</option></select></label>
             <label>Fórmula<select data-b="formula"><option value="">Rotar automáticamente</option><option>AIDA</option><option>PSBA</option></select></label>
             <label>Tipo de hook<select data-b="hook"><option value="">Que decida el guionista</option><option>Error común</option><option>Dato sorprendente</option><option>Pregunta directa</option><option>Contraintuitivo</option><option>Historia en primera persona</option><option>Promesa con tiempo</option></select></label>
-            <label>Llamado a la acción<select data-b="cta"><option value="">Que decida el guionista</option><option>Escribir al WhatsApp</option><option>Comentar una palabra clave</option><option>Pregunta para los comentarios</option><option>Guardar el video</option><option>Compartir el video</option><option>Seguir la cuenta / parte 2</option><option>Cierre suave sin pedir nada</option></select></label>
+            <label>Llamado a la acción<select data-b="cta"><option value="">Que decida el guionista</option><option>Escríbeme al WhatsApp para saber cómo empezar</option><option>Escríbeme al WhatsApp y te ayudo con lo que necesites</option><option>Escríbeme al WhatsApp y te envío la información</option><option>Escríbeme al WhatsApp y te cuento el precio</option></select></label>
             <label>Palabra clave<input class="txt" data-b="clave" placeholder="Ej: UÑAS"></label>
           </div>
           <label>Protagonista<input class="txt" data-b="protagonista" placeholder="Ej: mujer de 28 años, manicurista, cálida y segura"></label>
@@ -824,8 +824,15 @@ function elegirAgente(dept, texto){
   dept.agentes.forEach((a,i)=>{ if(a.oculto) return; const s = a.kw.reduce((n,k)=>n+(t.includes(norm(k))?1:0),0); if(s>score){score=s;best=i;} });
   return best;
 }
+// Regla fija del dueño: el final de todo guion y de todo video es un llamado a la acción para escribir al WhatsApp
+const REGLA_CTA = `REGLA FIJA DEL DUEÑO (está por encima de cualquier otra indicación, incluida la ficha):
+El último bloque del guion y el último clip del video SIEMPRE son un llamado a la acción para que la persona escriba al WhatsApp. Nunca termines con un cierre suave, con "comenta una palabra", con "guarda el video" ni sin pedir nada: el cliente tiene que saber qué hacer. Ejemplos: "Escríbeme al WhatsApp y te ayudo con lo que necesites", "Escríbeme al WhatsApp para saber cómo empezar", "Escríbeme al WhatsApp y te envío la información". Varía la frase, pero que siempre lleve a escribir al WhatsApp.
+
+`;
+const llevaCta = t => (t.dept==="audiovisual" && [1,2,3].includes(Number(t.agente))) || (t.dept==="marketing" && [1,2].includes(Number(t.agente)));
 function prompt(t, extra){
   const d = deptById(t.dept), a = d.agentes[t.agente];
+  if(llevaCta(t)) extra = REGLA_CTA + (extra || "");
   if(esCopyVentas(t.dept, t.agente)) extra = (extra || "") + ultimoSeguimiento(t);
   return `Eres "${a.rol}", del departamento de ${d.nombre}, en un equipo de agentes que trabaja para un negocio de infoproductos (cursos digitales).
 Tu especialidad: ${a.desc}.${a.instr && a.instr.trim() ? `
@@ -852,7 +859,7 @@ function productoTexto(t){
   return `PRODUCTO REAL DEL DUEÑO (respétalo al pie de la letra; no lo confundas con otro producto parecido):\n- Nombre: ${p.nombre}${p.descripcion ? `\n- Qué se enseña y cómo es: ${p.descripcion}` : ""}${n ? `\n- Te adjunto ${n} foto${n>1?"s":""} del producto real. Obsérvala${n>1?"s":""} con atención: materiales, colores, forma, tamaño y detalles. Todo lo que escribas sobre el producto debe coincidir con lo que se ve.` : ""}\n\n`;
 }
 const OBJETIVOS = ["Anuncio para vender (que escriban al WhatsApp)","Orgánico de valor","Generar comentarios","Crecer la cuenta (guardar, compartir, seguir)"];
-const CTAS = ["Escribir al WhatsApp","Comentar una palabra clave","Pregunta para los comentarios","Guardar el video","Compartir el video","Seguir la cuenta / parte 2","Cierre suave sin pedir nada"];
+const CTAS = ["Escríbeme al WhatsApp para saber cómo empezar","Escríbeme al WhatsApp y te ayudo con lo que necesites","Escríbeme al WhatsApp y te envío la información","Escríbeme al WhatsApp y te cuento el precio"];
 function planTexto(t){
   const p = t.plan, f = p.fechas || [], por = p.porDia || 1;
   return `\n\nFICHA DEL PRODUCTO PARA EL PLAN (datos del dueño):\n- Curso: ${p.curso}${p.publico ? `\n- Público: ${p.publico}` : ""}${p.oferta ? `\n- Oferta: ${p.oferta}` : ""}\n- Enfoque del calendario: ${p.enfoque || "Mezcla: vender y crecer la cuenta"}${p.notas ? `\n- Notas: ${p.notas}` : ""}
@@ -2172,7 +2179,7 @@ function marcarCal(id, estado){ const e = store.calendario.find(x=>x.id===id); i
 const PASOS_CAL = [ { agente:1, que:"Escribe el guion" }, { agente:0, que:"Crea al protagonista y la hoja de 6 vistas" }, { agente:3, que:"Crea los prompts y las 3 imágenes" }, { agente:2, que:"Crea los prompts de video" } ];
 const pasosDe = e => (typeof e.pasos==="number" ? e.pasos : (calCfg().cadena ? 3 : 0));
 const rolAV = i => deptById("audiovisual").agentes[i].rol;
-function briefDeEntrada(e){ return { curso:e.curso, publico:e.publico, objetivo:e.objetivo, duracion:"60 segundos como mínimo (150 a 170 palabras habladas)", formula:e.formula, hook:e.hook, cta:e.cta, clave:e.clave, protagonista:e.protagonista, dolor:e.dolor, resultado:e.resultado, oferta:e.oferta, notas:[e.angulo && "Ángulo: "+e.angulo, e.idea && "Idea del reel: "+e.idea, e.notas].filter(Boolean).join(". ") }; }
+function briefDeEntrada(e){ return { curso:e.curso, publico:e.publico, objetivo:e.objetivo, duracion:"60 segundos como mínimo (150 a 170 palabras habladas)", formula:e.formula, hook:e.hook, cta: /whatsapp/i.test(e.cta||"") ? e.cta : "Escríbeme al WhatsApp para saber cómo empezar", clave:e.clave, protagonista:e.protagonista, dolor:e.dolor, resultado:e.resultado, oferta:e.oferta, notas:[e.angulo && "Ángulo: "+e.angulo, e.idea && "Idea del reel: "+e.idea, e.notas].filter(Boolean).join(". ") }; }
 function producirEntrada(e){
   const brief = briefDeEntrada(e); Object.keys(brief).forEach(k=>{ if(!brief[k]) delete brief[k]; });
   const [y,m,d] = e.fecha.split("-");
