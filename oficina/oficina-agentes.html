@@ -1640,14 +1640,36 @@ const DURACION_VIDEO = [
 - Si el diálogo de una imagen tiene menos de 16 palabras, ALÁRGALO un poco para llenar los 8 segundos: agrega una frase corta y natural que siga la misma idea del guion (un detalle concreto, una reacción, una pregunta al espectador o un remate), con el mismo tono y la misma forma de hablar. No cambies el mensaje ni lo que ya dice el guion: solo complétalo. En el resumen marca lo agregado con ✏️ Agregado: "...".`],
   ["- Copia el diálogo palabra por palabra. No agregues, quites ni cambies palabras.", "- Copia el diálogo del guion palabra por palabra; lo único que puedes hacer es agregar al final lo necesario para llegar a 16 a 20 palabras. No quites ni cambies palabras del guion."]
 ];
-function migrarInstrucciones(){
-  const o = store.equipo && store.equipo["audiovisual/2"];
+// Una sola toma con la protagonista (la imagen de la mitad); el resto del reel va con tomas de apoyo
+const TOMA_UNICA = [
+  ["Un prompt de video por cada imagen recibida, en el mismo orden. Cada imagen es el frame inicial exacto de su clip.", `UNA SOLA TOMA CON LA PROTAGONISTA: un único clip de 8 segundos hecho con la imagen del DESARROLLO (la imagen de la mitad), que es el frame inicial exacto del clip. El resto del reel se arma con tomas de apoyo, así que NO hagas prompts de video para las otras imágenes.
+Para esa toma escoge del guion la parte MÁS IMPORTANTE para vender (la que mejor muestra el dolor, el resultado o la transformación) y úsala como diálogo. Explica en una línea por qué escogiste esa parte.
+Después del clip agrega VOZ EN OFF PARA LAS TOMAS DE APOYO: el resto del guion en orden, palabra por palabra, marcando con [AQUÍ ENTRA LA TOMA DE LA PROTAGONISTA] el momento en que va el clip, para que el dueño lo narre sobre las tomas de apoyo.`],
+  ["- Si el diálogo de una imagen tiene más de 20 palabras, divídelo en clips consecutivos con la misma imagen (CLIP 1A, CLIP 1B), cortando en pausas naturales, y usa un movimiento de cámara distinto en cada uno.", "- Si la parte escogida tiene más de 20 palabras, quédate con la frase más fuerte hasta 20 palabras. Nunca hagas más de un clip."],
+  ["Al final agrega ORDEN DE MONTAJE: la lista de clips en orden, la duración total aproximada y, si hay voz en off, en qué clips va la narración.", "Al final agrega ORDEN DE MONTAJE: en qué segundo del reel entra la toma de la protagonista, qué tomas de apoyo van antes y después (manos trabajando, producto, detalles) y la duración total aproximada."]
+];
+// Guiones de al menos 60 segundos
+const GUION_60 = [
+  ["Cada guion dura 45 segundos: entre 110 y 125 palabras habladas en total. Cuenta las palabras antes de entregar. Si te pasas, recorta.", "Cada guion dura lo que diga la FICHA DEL REEL, y nunca menos de 60 segundos: entre 150 y 170 palabras habladas en total. Cuenta las palabras antes de entregar. Si te quedas corto, desarrolla más la historia, el dolor y la demostración; si te pasas, recorta."],
+  ["- Un guion = una idea. No metas tres temas en 45 segundos.", "- Un guion = una idea. No metas tres temas en un solo reel."]
+];
+function aplicarCambios(k, cambios){
+  const o = store.equipo && store.equipo[k];
   if(!o || !o.instrucciones) return false;
+  let t = o.instrucciones;
+  cambios.forEach(([viejo, nuevo])=>{ if(t.includes(viejo)) t = t.replace(viejo, nuevo); });
+  if(t===o.instrucciones) return false;
+  o.instrucciones = t; return true;
+}
+function migrarInstrucciones(){
+  const a = aplicarCambios("audiovisual/2", TOMA_UNICA), g = aplicarCambios("audiovisual/1", GUION_60);
+  const o = store.equipo && store.equipo["audiovisual/2"];
+  if(!o || !o.instrucciones) return a || g;
   let t = o.instrucciones;
   if(FORMATO_VIDEO_VIEJO.test(t)) t = t.replace(FORMATO_VIDEO_VIEJO, FORMATO_VIDEO);
   DURACION_VIDEO.forEach(([viejo, nuevo])=>{ if(t.includes(viejo)) t = t.replace(viejo, nuevo); });
   t = t.replace('DIALOGUE (Spanish): She says: "[diálogo exacto en español]"', 'DIALOGUE (Spanish): She says: "[diálogo completo en español, 16 a 20 palabras]" She speaks at a natural, relaxed pace that fills the whole 8-second clip.');
-  if(t===o.instrucciones) return false;
+  if(t===o.instrucciones) return a || g;
   o.instrucciones = t; return true;
 }
 function instrVentasIniciales(){
@@ -2103,7 +2125,7 @@ function lanzarCopy(e, guion){
 const CADENA_DEF = [
   { dept:"audiovisual", agente:0, texto:"Lee el guion, define al protagonista y crea la hoja de referencia de 6 vistas. Entrega la ficha del protagonista, el prompt de la hoja y las escenas del guion con la VOZ textual de cada una." },
   { dept:"audiovisual", agente:3, texto:"Con la ficha y las escenas recibidas, crea los 3 prompts de imagen (gancho, desarrollo y llamado a la acción) en estilo foto UGC real de celular, usando la hoja de 6 vistas como referencia. Incluye el diálogo exacto de cada momento." },
-  { dept:"audiovisual", agente:2, texto:"Con las 3 imágenes y sus diálogos, crea un prompt de video por cada imagen, usando cada imagen como frame inicial. Divide en clips de máximo 8 segundos cuando el diálogo sea largo, y entrega el orden de montaje." }
+  { dept:"audiovisual", agente:2, texto:"Con la imagen del desarrollo (la de la mitad), crea la única toma de video de la protagonista: 8 segundos con la parte más importante del guion. Luego entrega la voz en off del resto del guion para las tomas de apoyo y el orden de montaje." }
 ];
 function sumarDias(f, n){ const [y,m,d] = f.split("-").map(Number); return hoyStr(new Date(y, m-1, d+n)); }
 function fechasPlan(desde, dias, curso){
@@ -2140,7 +2162,7 @@ function marcarCal(id, estado){ const e = store.calendario.find(x=>x.id===id); i
 const PASOS_CAL = [ { agente:1, que:"Escribe el guion" }, { agente:0, que:"Crea al protagonista y la hoja de 6 vistas" }, { agente:3, que:"Crea los prompts y las 3 imágenes" }, { agente:2, que:"Crea los prompts de video" } ];
 const pasosDe = e => (typeof e.pasos==="number" ? e.pasos : (calCfg().cadena ? 3 : 0));
 const rolAV = i => deptById("audiovisual").agentes[i].rol;
-function briefDeEntrada(e){ return { curso:e.curso, publico:e.publico, objetivo:e.objetivo, duracion:"45 segundos", formula:e.formula, hook:e.hook, cta:e.cta, clave:e.clave, protagonista:e.protagonista, dolor:e.dolor, resultado:e.resultado, oferta:e.oferta, notas:[e.angulo && "Ángulo: "+e.angulo, e.idea && "Idea del reel: "+e.idea, e.notas].filter(Boolean).join(". ") }; }
+function briefDeEntrada(e){ return { curso:e.curso, publico:e.publico, objetivo:e.objetivo, duracion:"60 segundos como mínimo (150 a 170 palabras habladas)", formula:e.formula, hook:e.hook, cta:e.cta, clave:e.clave, protagonista:e.protagonista, dolor:e.dolor, resultado:e.resultado, oferta:e.oferta, notas:[e.angulo && "Ángulo: "+e.angulo, e.idea && "Idea del reel: "+e.idea, e.notas].filter(Boolean).join(". ") }; }
 function producirEntrada(e){
   const brief = briefDeEntrada(e); Object.keys(brief).forEach(k=>{ if(!brief[k]) delete brief[k]; });
   const [y,m,d] = e.fecha.split("-");
@@ -2188,7 +2210,7 @@ const SUGERENCIAS = {
   "audiovisual/1": "Con el trabajo recibido, escribe el guion de reel de 45 segundos siguiendo tu formato: fórmula AIDA o PSBA, un hook potente, el protagonista, y por bloques la VOZ, EN PANTALLA y VISUAL, con un solo llamado a la acción.",
   "audiovisual/0": "Lee el guion, define al protagonista y crea la hoja de referencia de 6 vistas. Entrega la ficha del protagonista, el prompt de la hoja y las escenas del guion con la VOZ textual de cada una.",
   "audiovisual/3": "Con la ficha y las escenas recibidas, crea los 3 prompts de imagen (gancho, desarrollo y llamado a la acción) en estilo foto UGC real de celular, usando la hoja de 6 vistas como referencia. Incluye el diálogo exacto de cada momento.",
-  "audiovisual/2": "Con las 3 imágenes y sus diálogos, crea un prompt de video por cada imagen, usando cada imagen como frame inicial. Divide en clips de máximo 8 segundos cuando el diálogo sea largo, y entrega el orden de montaje.",
+  "audiovisual/2": "Con la imagen del desarrollo (la de la mitad), crea la única toma de video de la protagonista: 8 segundos con la parte más importante del guion. Luego entrega la voz en off del resto del guion para las tomas de apoyo y el orden de montaje.",
   "marketing/2": "Con el guion recibido, escribe el copy del anuncio para Meta Ads con la estructura PSBA (Problema, Solución, Beneficio y Acción), que lleve a escribir al WhatsApp, siguiendo tu formato de entrega.",
   "ventas/1": "Con lo recibido, escribe los textos de WhatsApp para este curso siguiendo tu formato: inicio, las 2 fotos, bono y apertura.",
   "ventas/3": "Con lo recibido, escribe 3 mensajes de seguimiento por WhatsApp para quien preguntó y no compró (al día siguiente, a los 3 días y a los 7 días), cortos y sin presionar."
