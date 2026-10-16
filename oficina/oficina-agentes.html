@@ -1640,13 +1640,23 @@ const DURACION_VIDEO = [
 - Si el diálogo de una imagen tiene menos de 16 palabras, ALÁRGALO un poco para llenar los 8 segundos: agrega una frase corta y natural que siga la misma idea del guion (un detalle concreto, una reacción, una pregunta al espectador o un remate), con el mismo tono y la misma forma de hablar. No cambies el mensaje ni lo que ya dice el guion: solo complétalo. En el resumen marca lo agregado con ✏️ Agregado: "...".`],
   ["- Copia el diálogo palabra por palabra. No agregues, quites ni cambies palabras.", "- Copia el diálogo del guion palabra por palabra; lo único que puedes hacer es agregar al final lo necesario para llegar a 16 a 20 palabras. No quites ni cambies palabras del guion."]
 ];
-// Una sola toma con la protagonista (la imagen de la mitad); el resto del reel va con tomas de apoyo
+// Tres tomas con la protagonista: principio (gancho), UNA de la mitad y final (llamado a la acción).
+// El resto del desarrollo va con voz en off sobre tomas de apoyo.
+const QUE_ENTREGAS_3 = `TRES TOMAS CON LA PROTAGONISTA, ni una más:
+1. CLIP 1 — GANCHO: con la imagen del gancho (la primera), con el diálogo del gancho.
+2. CLIP 2 — DESARROLLO: UNA SOLA toma con la imagen de la mitad. Escoge del desarrollo la parte MÁS IMPORTANTE para vender (la que mejor muestra el dolor, el resultado o la transformación) y explica en una línea por qué la escogiste. Nunca hagas varias tomas del desarrollo.
+3. CLIP 3 — LLAMADO A LA ACCIÓN: con la imagen del final, con el diálogo del llamado a la acción.
+Cada imagen es el frame inicial exacto de su clip.
+Después de los 3 clips agrega VOZ EN OFF PARA LAS TOMAS DE APOYO: el resto del desarrollo que no entró en el CLIP 2, en orden y palabra por palabra, marcando con [AQUÍ ENTRA EL CLIP 2] dónde va la toma, para que el dueño lo narre sobre las tomas de apoyo.`;
 const TOMA_UNICA = [
-  ["Un prompt de video por cada imagen recibida, en el mismo orden. Cada imagen es el frame inicial exacto de su clip.", `UNA SOLA TOMA CON LA PROTAGONISTA: un único clip de 8 segundos hecho con la imagen del DESARROLLO (la imagen de la mitad), que es el frame inicial exacto del clip. El resto del reel se arma con tomas de apoyo, así que NO hagas prompts de video para las otras imágenes.
+  ["Un prompt de video por cada imagen recibida, en el mismo orden. Cada imagen es el frame inicial exacto de su clip.", QUE_ENTREGAS_3],
+  [`UNA SOLA TOMA CON LA PROTAGONISTA: un único clip de 8 segundos hecho con la imagen del DESARROLLO (la imagen de la mitad), que es el frame inicial exacto del clip. El resto del reel se arma con tomas de apoyo, así que NO hagas prompts de video para las otras imágenes.
 Para esa toma escoge del guion la parte MÁS IMPORTANTE para vender (la que mejor muestra el dolor, el resultado o la transformación) y úsala como diálogo. Explica en una línea por qué escogiste esa parte.
-Después del clip agrega VOZ EN OFF PARA LAS TOMAS DE APOYO: el resto del guion en orden, palabra por palabra, marcando con [AQUÍ ENTRA LA TOMA DE LA PROTAGONISTA] el momento en que va el clip, para que el dueño lo narre sobre las tomas de apoyo.`],
-  ["- Si el diálogo de una imagen tiene más de 20 palabras, divídelo en clips consecutivos con la misma imagen (CLIP 1A, CLIP 1B), cortando en pausas naturales, y usa un movimiento de cámara distinto en cada uno.", "- Si la parte escogida tiene más de 20 palabras, quédate con la frase más fuerte hasta 20 palabras. Nunca hagas más de un clip."],
-  ["Al final agrega ORDEN DE MONTAJE: la lista de clips en orden, la duración total aproximada y, si hay voz en off, en qué clips va la narración.", "Al final agrega ORDEN DE MONTAJE: en qué segundo del reel entra la toma de la protagonista, qué tomas de apoyo van antes y después (manos trabajando, producto, detalles) y la duración total aproximada."]
+Después del clip agrega VOZ EN OFF PARA LAS TOMAS DE APOYO: el resto del guion en orden, palabra por palabra, marcando con [AQUÍ ENTRA LA TOMA DE LA PROTAGONISTA] el momento en que va el clip, para que el dueño lo narre sobre las tomas de apoyo.`, QUE_ENTREGAS_3],
+  ["- Si el diálogo de una imagen tiene más de 20 palabras, divídelo en clips consecutivos con la misma imagen (CLIP 1A, CLIP 1B), cortando en pausas naturales, y usa un movimiento de cámara distinto en cada uno.", "- Si el diálogo de un clip tiene más de 20 palabras, quédate con la parte más fuerte hasta 20 palabras; lo demás va en la voz en off. Nunca dividas un clip en varios (nada de CLIP 1A, 1B)."],
+  ["- Si la parte escogida tiene más de 20 palabras, quédate con la frase más fuerte hasta 20 palabras. Nunca hagas más de un clip.", "- Si el diálogo de un clip tiene más de 20 palabras, quédate con la parte más fuerte hasta 20 palabras; lo demás va en la voz en off. Nunca dividas un clip en varios (nada de CLIP 1A, 1B)."],
+  ["Al final agrega ORDEN DE MONTAJE: la lista de clips en orden, la duración total aproximada y, si hay voz en off, en qué clips va la narración.", "Al final agrega ORDEN DE MONTAJE: CLIP 1 al inicio, luego la voz en off con tomas de apoyo, el CLIP 2 en su momento, más voz en off con tomas de apoyo, y el CLIP 3 al final; con los segundos aproximados de cada parte y la duración total."],
+  ["Al final agrega ORDEN DE MONTAJE: en qué segundo del reel entra la toma de la protagonista, qué tomas de apoyo van antes y después (manos trabajando, producto, detalles) y la duración total aproximada.", "Al final agrega ORDEN DE MONTAJE: CLIP 1 al inicio, luego la voz en off con tomas de apoyo, el CLIP 2 en su momento, más voz en off con tomas de apoyo, y el CLIP 3 al final; con los segundos aproximados de cada parte y la duración total."]
 ];
 // Guiones de al menos 60 segundos
 const GUION_60 = [
@@ -2125,7 +2135,7 @@ function lanzarCopy(e, guion){
 const CADENA_DEF = [
   { dept:"audiovisual", agente:0, texto:"Lee el guion, define al protagonista y crea la hoja de referencia de 6 vistas. Entrega la ficha del protagonista, el prompt de la hoja y las escenas del guion con la VOZ textual de cada una." },
   { dept:"audiovisual", agente:3, texto:"Con la ficha y las escenas recibidas, crea los 3 prompts de imagen (gancho, desarrollo y llamado a la acción) en estilo foto UGC real de celular, usando la hoja de 6 vistas como referencia. Incluye el diálogo exacto de cada momento." },
-  { dept:"audiovisual", agente:2, texto:"Con la imagen del desarrollo (la de la mitad), crea la única toma de video de la protagonista: 8 segundos con la parte más importante del guion. Luego entrega la voz en off del resto del guion para las tomas de apoyo y el orden de montaje." }
+  { dept:"audiovisual", agente:2, texto:"Con las 3 imágenes, crea los 3 clips de la protagonista: el gancho, UNA sola toma del desarrollo con la parte más importante y el llamado a la acción. Luego entrega la voz en off del resto del desarrollo para las tomas de apoyo y el orden de montaje." }
 ];
 function sumarDias(f, n){ const [y,m,d] = f.split("-").map(Number); return hoyStr(new Date(y, m-1, d+n)); }
 function fechasPlan(desde, dias, curso){
@@ -2210,7 +2220,7 @@ const SUGERENCIAS = {
   "audiovisual/1": "Con el trabajo recibido, escribe el guion de reel de 45 segundos siguiendo tu formato: fórmula AIDA o PSBA, un hook potente, el protagonista, y por bloques la VOZ, EN PANTALLA y VISUAL, con un solo llamado a la acción.",
   "audiovisual/0": "Lee el guion, define al protagonista y crea la hoja de referencia de 6 vistas. Entrega la ficha del protagonista, el prompt de la hoja y las escenas del guion con la VOZ textual de cada una.",
   "audiovisual/3": "Con la ficha y las escenas recibidas, crea los 3 prompts de imagen (gancho, desarrollo y llamado a la acción) en estilo foto UGC real de celular, usando la hoja de 6 vistas como referencia. Incluye el diálogo exacto de cada momento.",
-  "audiovisual/2": "Con la imagen del desarrollo (la de la mitad), crea la única toma de video de la protagonista: 8 segundos con la parte más importante del guion. Luego entrega la voz en off del resto del guion para las tomas de apoyo y el orden de montaje.",
+  "audiovisual/2": "Con las 3 imágenes, crea los 3 clips de la protagonista: el gancho, UNA sola toma del desarrollo con la parte más importante y el llamado a la acción. Luego entrega la voz en off del resto del desarrollo para las tomas de apoyo y el orden de montaje.",
   "marketing/2": "Con el guion recibido, escribe el copy del anuncio para Meta Ads con la estructura PSBA (Problema, Solución, Beneficio y Acción), que lleve a escribir al WhatsApp, siguiendo tu formato de entrega.",
   "ventas/1": "Con lo recibido, escribe los textos de WhatsApp para este curso siguiendo tu formato: inicio, las 2 fotos, bono y apertura.",
   "ventas/3": "Con lo recibido, escribe 3 mensajes de seguimiento por WhatsApp para quien preguntó y no compró (al día siguiente, a los 3 días y a los 7 días), cortos y sin presionar."
