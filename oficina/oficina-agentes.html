@@ -713,7 +713,7 @@ function recortarParaGuardar(data){
     break;
   }
 }
-function datosOficina(){ return { tareas: store.tareas.map(t=>({...t})), negocio: store.negocio, rutinas: store.rutinas.map(r=>({...r})), drive: driveCfg(), avisos: avisosCfg(), img: imgCfg(), equipo: store.equipo || {}, briefReel: store.briefReel || null, planUlt: store.planUlt || null, calCfg: calCfg(), invCfg: invCfg(), invUlt: store.invUlt || null, productos: store.productos || [], ventasCfg: ventasCfg(), ventasIni: Number(store.ventasIni) || 0, ventasHoy: store.ventasHoy || null }; }
+function datosOficina(){ return { tareas: store.tareas.map(t=>({...t})), negocio: store.negocio, rutinas: store.rutinas.map(r=>({...r})), drive: driveCfg(), avisos: avisosCfg(), img: imgCfg(), equipo: store.equipo || {}, briefReel: store.briefReel || null, planUlt: store.planUlt || null, calCfg: calCfg(), invCfg: invCfg(), invUlt: store.invUlt || null, productos: store.productos || [], ventasCfg: ventasCfg(), ventasIni: Number(store.ventasIni) || 0, ventasHoy: store.ventasHoy || null, reparado: Number(store.reparado) || 0 }; }
 async function saveCal(){
   if(savingCal){ pendingCal = true; return; }
   savingCal = true;
@@ -741,7 +741,7 @@ async function initStorage(){
       const snap = await docRef.get();
       const crudo = snap && snap.data && snap.data();
       const data = crudo ? JSON.parse(JSON.stringify(crudo)) : null;
-      if(data) store = { tareas: Array.isArray(data.tareas)?data.tareas:[], negocio: data.negocio||"", rutinas: Array.isArray(data.rutinas)?data.rutinas:[], drive: data.drive || { activo:true, carpetas:{} }, avisos: data.avisos || { sonido:true }, img: data.img || { auto:true, max:4 }, equipo: data.equipo || {}, briefReel: data.briefReel || null, planUlt: data.planUlt || null, calCfg: data.calCfg || null, invCfg: data.invCfg || {}, invUlt: data.invUlt || null, productos: Array.isArray(data.productos) ? data.productos : [], ventasCfg: data.ventasCfg || null, ventasIni: Number(data.ventasIni) || 0, ventasHoy: data.ventasHoy || null };
+      if(data) store = { tareas: Array.isArray(data.tareas)?data.tareas:[], negocio: data.negocio||"", rutinas: Array.isArray(data.rutinas)?data.rutinas:[], drive: data.drive || { activo:true, carpetas:{} }, avisos: data.avisos || { sonido:true }, img: data.img || { auto:true, max:4 }, equipo: data.equipo || {}, briefReel: data.briefReel || null, planUlt: data.planUlt || null, calCfg: data.calCfg || null, invCfg: data.invCfg || {}, invUlt: data.invUlt || null, productos: Array.isArray(data.productos) ? data.productos : [], ventasCfg: data.ventasCfg || null, ventasIni: Number(data.ventasIni) || 0, ventasHoy: data.ventasHoy || null, reparado: Number(data.reparado) || 0 };
       for(let k=0; k<3 && !extraOk; k++){
         try{
           const es = await extraRef.get(), ed = es && es.data && es.data();
@@ -768,6 +768,7 @@ async function initStorage(){
   aplicarEquipo();
   cargado = true;
   if(nuevasVentas) save();
+  repararCadenas();
   pintarContador(); setTimeout(actualizarContador, 2500);
   renderAll(); revisarRutinas();
 }
@@ -795,7 +796,28 @@ async function save(){
 async function initSample(){
   try{ sample = (window.claude && claude.use) ? await claude.use("sample") : null; }catch(e){ sample = null; }
   sampleChecked = true;
-  updateLive(); updateComposer(); revisarRutinas();
+  updateLive(); updateComposer(); revisarRutinas(); repararCadenas();
+}
+// Reparación única (16/10/2026): rehace las cadenas de reels cuyo guion quedó recortado por el error de guardado
+// y que por eso no sacaron la hoja del protagonista o las imágenes.
+const MARCA_RECORTE = "… (el resultado completo quedó guardado en Google Drive)";
+function repararCadenas(){
+  if(!cargado || !sample || Number(store.reparado) >= 1) return;
+  store.reparado = 1;
+  const rotas = store.tareas.filter(t=>t.dept==="audiovisual" && Number(t.agente)===1 && t.calId && t.estado==="lista" && String(t.resultado||"").endsWith(MARCA_RECORTE));
+  let n = 0;
+  rotas.forEach(g=>{
+    const ids = new Set([g.id]); let crecio = true;
+    while(crecio){ crecio = false; store.tareas.forEach(x=>{ if(!ids.has(x.id) && x.origen && ids.has(x.origen.id)){ ids.add(x.id); crecio = true; } }); }
+    const cadena = store.tareas.filter(x=>ids.has(x.id) && x.id!==g.id);
+    const fallo = cadena.some(x=>x.esperandoHoja || (x.imagenes && x.imagenes.estado==="error"));
+    if(!fallo || cadena.some(x=>x.estado==="trabajando" || x.estado==="cola")) return;
+    store.tareas = store.tareas.filter(x=>!ids.has(x.id) || x.id===g.id);
+    Object.assign(g, { estado:"cola", resultado:"", error:"", creada: Date.now(), terminada: null, pasoA: null, esperandoHoja: false, imagenes: null, hoja: null, drive: null });
+    marcarCal(g.calId, "produccion"); n++;
+  });
+  save(); renderAll();
+  if(n){ procesarCola(); toast(`Rehaciendo ${n} reel${n>1?"es":""} que se quedaron sin imágenes.`); }
 }
 function elegirAgente(dept, texto){
   const t = norm(texto); let best = 0, score = 0;
