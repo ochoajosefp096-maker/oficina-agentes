@@ -735,7 +735,7 @@ async function initStorage(){
   store.calendario.forEach(e=>{ if(e.estado==="planeado") e.estado = "pendiente"; if(e.estado==="produccion" && !store.tareas.some(x=>x.calId===e.id && (x.estado==="cola"||x.estado==="trabajando"||x.estado==="pausada"||x.estado==="lista"))) e.estado = "aprobado"; });
   store.tareas.forEach(t=>{ if(t.estado==="trabajando"||t.estado==="cola"){ t.estado="pausada"; } if(t.drive && t.drive.estado==="guardando") t.drive = { estado:"error", error:"El guardado se interrumpió al cerrar la página." }; if(t.imagenes && (t.imagenes.estado==="generando" || t.imagenes.estado==="pendiente")) t.imagenes.estado = "pausado"; });
   driveCfg();
-  const nuevasVentas = instrVentasIniciales();
+  const nuevasVentas = instrVentasIniciales() | migrarInstrucciones();
   aplicarEquipo();
   cargado = true;
   if(nuevasVentas) save();
@@ -1558,6 +1558,35 @@ Usa pesos colombianos y cifras redondeadas. Si una campaña no se pudo asignar a
 Tono cercano y colombiano, tuteo, frases cortas y emojis moderados. Si no tienes el link, el precio o el bono, déjalos entre [corchetes].
 Si recibes el reporte del Seguimiento de ventas, termina con MEJORAS DE CONVERSIÓN: de 3 a 5 cambios concretos a estos textos basados en los números (conversión de chat a venta, costo por venta, cursos que más venden) y qué número esperas mejorar con cada uno.`
 };
+// Creador Audiovisual: prompts de video separados por secciones (para Google Flow, 9:16)
+const FORMATO_VIDEO_VIEJO = /FORMATO DE ENTREGA\nPara cada clip:\nCLIP \[número\][^\n]*\nImagen de referencia:[^\n]*\nPrompt: \[el prompt completo en un solo bloque, listo para pegar\]/;
+const FORMATO_VIDEO = `FORMATO DE ENTREGA (obligatorio; el dueño copia el prompt y lo pega en Google Flow, video vertical 9:16)
+Para cada clip, exactamente así:
+
+CLIP [número] — [GANCHO / DESARROLLO / LLAMADO A LA ACCIÓN] ([duración] s)
+Imagen de referencia: [la imagen a la que corresponde]
+
+🎥 CÁMARA: [el movimiento de cámara, en español]
+🙋 ACCIÓN: [qué hace antes de hablar y mientras habla, en español]
+💬 DIÁLOGO: "[lo que dice, palabra por palabra, en español]"
+🗣️ VOZ: [la voz resumida, en español]
+
+PROMPT PARA PEGAR:
+CAMERA: Use the provided reference image as the exact initial frame of the video. [movimiento de cámara en inglés]
+ACTION: [acciones en inglés: antes de hablar y mientras habla]
+DIALOGUE (Spanish): She says: "[diálogo exacto en español]"
+VOICE: [la línea de voz completa en inglés]
+ACCENT: Spanish with a clear, neutral Colombian (Bogotá) accent.
+RULES: Vertical 9:16 video. [el cierre obligatorio completo]
+
+Cada sección del PROMPT PARA PEGAR va en su propia línea y empieza con su etiqueta (CAMERA, ACTION, DIALOGUE, VOICE, ACCENT, RULES). Todo va en inglés, menos el diálogo, que va en español entre comillas. Nunca juntes las secciones en un solo párrafo.
+En tomas sin diálogo escribe 💬 DIÁLOGO: Sin diálogo (toma de apoyo), y en el prompt: DIALOGUE: None — no talking, mouth closed.`;
+function migrarInstrucciones(){
+  const o = store.equipo && store.equipo["audiovisual/2"];
+  if(!o || !o.instrucciones || !FORMATO_VIDEO_VIEJO.test(o.instrucciones)) return false;
+  o.instrucciones = o.instrucciones.replace(FORMATO_VIDEO_VIEJO, FORMATO_VIDEO);
+  return true;
+}
 function instrVentasIniciales(){
   const v = Number(store.ventasIni) || 0; if(v>=3) return false;
   store.equipo = store.equipo || {};
