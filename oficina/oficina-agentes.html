@@ -768,7 +768,7 @@ async function initStorage(){
   aplicarEquipo();
   cargado = true;
   if(nuevasVentas) save();
-  repararCadenas();
+  repararCadenas(); reanudarImagenes();
   pintarContador(); setTimeout(actualizarContador, 2500);
   renderAll(); revisarRutinas();
 }
@@ -796,7 +796,17 @@ async function save(){
 async function initSample(){
   try{ sample = (window.claude && claude.use) ? await claude.use("sample") : null; }catch(e){ sample = null; }
   sampleChecked = true;
-  updateLive(); updateComposer(); revisarRutinas(); repararCadenas();
+  updateLive(); updateComposer(); revisarRutinas(); repararCadenas(); reanudarImagenes();
+}
+// Si la oficina se cerró o se recargó mientras se creaban imágenes, las retoma solas al abrirla.
+// Antes de pedir una imagen nueva, cada una se busca en Drive por su nombre, así que las que ya se crearon no se vuelven a pagar.
+let imagenesReanudadas = false;
+function reanudarImagenes(){
+  if(imagenesReanudadas || !cargado || !sample) return;
+  imagenesReanudadas = true;
+  const pausadas = store.tareas.filter(t=>t.estado==="lista" && t.imagenes && t.imagenes.estado==="pausado").reverse();
+  pausadas.forEach(t=>crearImagenes(t));
+  if(pausadas.length) toast(`Retomando las imágenes de ${pausadas.length} tarea${pausadas.length>1?"s":""} que quedaron en pausa.`);
 }
 // Reparación única (16/10/2026): rehace las cadenas de reels cuyo guion quedó recortado por el error de guardado
 // y que por eso no sacaron la hoja del protagonista o las imágenes.
