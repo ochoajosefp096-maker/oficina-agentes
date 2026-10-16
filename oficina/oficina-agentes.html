@@ -1563,12 +1563,13 @@ const FORMATO_VIDEO_VIEJO = /FORMATO DE ENTREGA\nPara cada clip:\nCLIP \[número
 const FORMATO_VIDEO = `FORMATO DE ENTREGA (obligatorio; el dueño copia el prompt y lo pega en Google Flow, video vertical 9:16)
 Para cada clip, exactamente así:
 
-CLIP [número] — [GANCHO / DESARROLLO / LLAMADO A LA ACCIÓN] ([duración] s)
+CLIP [número] — [GANCHO / DESARROLLO / LLAMADO A LA ACCIÓN] (8 s)
 Imagen de referencia: [la imagen a la que corresponde]
 
 🎥 CÁMARA: [el movimiento de cámara, en español]
 🙋 ACCIÓN: [qué hace antes de hablar y mientras habla, en español]
-💬 DIÁLOGO: "[lo que dice, palabra por palabra, en español]"
+💬 DIÁLOGO: "[lo que dice, palabra por palabra, en español]" ([número] palabras)
+✏️ Agregado: "[solo si alargaste el diálogo del guion: lo que agregaste]"
 🗣️ VOZ: [la voz resumida, en español]
 
 PROMPT PARA PEGAR:
@@ -1581,11 +1582,22 @@ RULES: Vertical 9:16 video. [el cierre obligatorio completo]
 
 Cada sección del PROMPT PARA PEGAR va en su propia línea y empieza con su etiqueta (CAMERA, ACTION, DIALOGUE, VOICE, ACCENT, RULES). Todo va en inglés, menos el diálogo, que va en español entre comillas. Nunca juntes las secciones en un solo párrafo.
 En tomas sin diálogo escribe 💬 DIÁLOGO: Sin diálogo (toma de apoyo), y en el prompt: DIALOGUE: None — no talking, mouth closed.`;
+// Clips de 8 segundos: el diálogo se alarga un poco cuando el guion trae una frase muy corta
+const DURACION_VIDEO = [
+  ["- Cada clip dura entre 6 y 8 segundos, en una sola toma continua.", "- Cada clip dura 8 segundos, en una sola toma continua. Nunca entregues clips de 4 o 5 segundos."],
+  ["- Cada clip lleva máximo 20 palabras habladas, porque más no cabe con buena sincronización de labios.", `- Cada clip con diálogo lleva entre 16 y 20 palabras habladas: es lo que llena 8 segundos a ritmo natural. Más de 20 no cabe con buena sincronización de labios.
+- Si el diálogo de una imagen tiene menos de 16 palabras, ALÁRGALO un poco para llenar los 8 segundos: agrega una frase corta y natural que siga la misma idea del guion (un detalle concreto, una reacción, una pregunta al espectador o un remate), con el mismo tono y la misma forma de hablar. No cambies el mensaje ni lo que ya dice el guion: solo complétalo. En el resumen marca lo agregado con ✏️ Agregado: "...".`],
+  ["- Copia el diálogo palabra por palabra. No agregues, quites ni cambies palabras.", "- Copia el diálogo del guion palabra por palabra; lo único que puedes hacer es agregar al final lo necesario para llegar a 16 a 20 palabras. No quites ni cambies palabras del guion."]
+];
 function migrarInstrucciones(){
   const o = store.equipo && store.equipo["audiovisual/2"];
-  if(!o || !o.instrucciones || !FORMATO_VIDEO_VIEJO.test(o.instrucciones)) return false;
-  o.instrucciones = o.instrucciones.replace(FORMATO_VIDEO_VIEJO, FORMATO_VIDEO);
-  return true;
+  if(!o || !o.instrucciones) return false;
+  let t = o.instrucciones;
+  if(FORMATO_VIDEO_VIEJO.test(t)) t = t.replace(FORMATO_VIDEO_VIEJO, FORMATO_VIDEO);
+  DURACION_VIDEO.forEach(([viejo, nuevo])=>{ if(t.includes(viejo)) t = t.replace(viejo, nuevo); });
+  t = t.replace('DIALOGUE (Spanish): She says: "[diálogo exacto en español]"', 'DIALOGUE (Spanish): She says: "[diálogo completo en español, 16 a 20 palabras]" She speaks at a natural, relaxed pace that fills the whole 8-second clip.');
+  if(t===o.instrucciones) return false;
+  o.instrucciones = t; return true;
 }
 function instrVentasIniciales(){
   const v = Number(store.ventasIni) || 0; if(v>=3) return false;
