@@ -686,12 +686,32 @@ const MAX_A_LA_VEZ = 2;
 const controllers = {};
 
 /* ---------- Persistencia ---------- */
-let db = null, docRef = null, calRef = null, saving = false, pending = false, savingCal = false, pendingCal = false;
-const LIMITE_DOC = 225000;
+let db = null, docRef = null, calRef = null, extraRef = null, extraOk = false, ultExtra = "", saving = false, pending = false, savingCal = false, pendingCal = false;
+// Cada documento de la base guarda como máximo 256 KB. Las instrucciones del equipo, los productos y la
+// descripción del negocio van en "oficina-extra" para dejarle el espacio de "oficina" a las tareas.
+const LIMITE_DOC = 240000;
+const bytesDe = o => new TextEncoder().encode(JSON.stringify(o)).length;
 function compactarTareas(){
   const fin = t => t.estado==="lista" || t.estado==="error";
   store.tareas.forEach((t,i)=>{ if(fin(t) && t.entrada && (!t.origen || store.tareas.some(x=>x.id===t.origen.id))) delete t.entrada; if(i>=25 && fin(t) && t.resultado && t.resultado.length>6200) t.resultado = t.resultado.slice(0,6000) + "\n\n… (el resultado completo quedó guardado en Google Drive)"; });
   while(store.tareas.length>70){ const i = store.tareas.map(fin).lastIndexOf(true); if(i<0) break; store.tareas.splice(i,1); }
+}
+// Recorta solo la COPIA que se guarda; los resultados en memoria quedan completos para los agentes que siguen
+function recortarParaGuardar(data){
+  const fin = t => t.estado==="lista" || t.estado==="error";
+  const ocupada = t => t.esperandoHoja || (t.imagenes && (t.imagenes.estado==="pendiente" || t.imagenes.estado==="generando"));
+  const corto = r => r.slice(0,1500) + "\n\n… (el resultado completo quedó guardado en Google Drive)";
+  const RECIENTES = 12;
+  for(let n=0; bytesDe(data) > LIMITE_DOC && n<300; n++){
+    const viejas = data.tareas.slice(RECIENTES);
+    const larga = [...viejas].reverse().find(t=>fin(t) && t.resultado && t.resultado.length>2000);
+    if(larga){ larga.resultado = corto(larga.resultado); continue; }
+    const i = data.tareas.map((t,k)=>k>=RECIENTES && fin(t)).lastIndexOf(true);
+    if(i>=0){ data.tareas.splice(i,1); continue; }
+    const reciente = [...data.tareas].reverse().find(t=>fin(t) && !ocupada(t) && t.resultado && t.resultado.length>2000);
+    if(reciente){ reciente.resultado = corto(reciente.resultado); continue; }
+    break;
+  }
 }
 function datosOficina(){ return { tareas: store.tareas.map(t=>({...t})), negocio: store.negocio, rutinas: store.rutinas.map(r=>({...r})), drive: driveCfg(), avisos: avisosCfg(), img: imgCfg(), equipo: store.equipo || {}, briefReel: store.briefReel || null, planUlt: store.planUlt || null, calCfg: calCfg(), invCfg: invCfg(), invUlt: store.invUlt || null, productos: store.productos || [], ventasCfg: ventasCfg(), ventasIni: Number(store.ventasIni) || 0, ventasHoy: store.ventasHoy || null }; }
 async function saveCal(){
@@ -712,7 +732,7 @@ async function initStorage(){
       const [d,u] = await Promise.all([claude.use("db"), claude.use("user")]);
       if(d && u){
         const uid = await u.id();
-        if(uid){ db = d; docRef = d.doc("data/users/"+uid+"/oficina"); calRef = d.doc("data/users/"+uid+"/calendario"); }
+        if(uid){ db = d; docRef = d.doc("data/users/"+uid+"/oficina"); calRef = d.doc("data/users/"+uid+"/calendario"); extraRef = d.doc("data/users/"+uid+"/oficina-extra"); }
       }
     }
   }catch(e){ db = null; }
@@ -722,6 +742,15 @@ async function initStorage(){
       const crudo = snap && snap.data && snap.data();
       const data = crudo ? JSON.parse(JSON.stringify(crudo)) : null;
       if(data) store = { tareas: Array.isArray(data.tareas)?data.tareas:[], negocio: data.negocio||"", rutinas: Array.isArray(data.rutinas)?data.rutinas:[], drive: data.drive || { activo:true, carpetas:{} }, avisos: data.avisos || { sonido:true }, img: data.img || { auto:true, max:4 }, equipo: data.equipo || {}, briefReel: data.briefReel || null, planUlt: data.planUlt || null, calCfg: data.calCfg || null, invCfg: data.invCfg || {}, invUlt: data.invUlt || null, productos: Array.isArray(data.productos) ? data.productos : [], ventasCfg: data.ventasCfg || null, ventasIni: Number(data.ventasIni) || 0, ventasHoy: data.ventasHoy || null };
+      for(let k=0; k<3 && !extraOk; k++){
+        try{
+          const es = await extraRef.get(), ed = es && es.data && es.data();
+          if(ed){ const x = JSON.parse(JSON.stringify(ed)); if(x.equipo) store.equipo = x.equipo; if(Array.isArray(x.productos)) store.productos = x.productos; if(typeof x.negocio==="string") store.negocio = x.negocio; ultExtra = JSON.stringify({ equipo: x.equipo, productos: x.productos, negocio: x.negocio }); }
+          extraOk = true;
+        }catch(e){ await dormir(800); }
+      }
+      // Si no se pudo leer el extra pero la oficina ya lo usa, no guardar nada para no borrar instrucciones ni productos
+      if(!extraOk && data && data.extra) docRef = null;
       try{ const cs = calRef ? await calRef.get() : null; const cd = cs && cs.data && cs.data(); store.calendario = cd && Array.isArray(cd.items) ? JSON.parse(JSON.stringify(cd.items)) : []; }catch(e){ store.calendario = []; }
     }else{
       const raw = localStorage.getItem("oficina-agentes");
@@ -746,18 +775,18 @@ async function save(){
   if(saving){ pending = true; return; }
   saving = true;
   compactarTareas();
-  let data = datosOficina();
-  for(let n=0; JSON.stringify(data).length > LIMITE_DOC && n<200; n++){
-    const fin = t => t.estado==="lista" || t.estado==="error";
-    const largo = [...store.tareas].reverse().find(t=>fin(t) && t.resultado && t.resultado.length>2000);
-    if(largo) largo.resultado = largo.resultado.slice(0,1500) + "\n\n… (el resultado completo quedó guardado en Google Drive)";
-    else { const i = store.tareas.map(fin).lastIndexOf(true); if(i<0) break; store.tareas.splice(i,1); }
-    data = datosOficina();
-  }
+  const data = datosOficina();
   try{
+    if(docRef && extraOk){
+      const extra = { equipo: data.equipo, productos: data.productos, negocio: data.negocio };
+      const txt = JSON.stringify(extra);
+      if(txt!==ultExtra){ await extraRef.set(extra); ultExtra = txt; }
+      delete data.equipo; delete data.productos; delete data.negocio; data.extra = true;
+    }
+    recortarParaGuardar(data);
     if(docRef) await docRef.set(data);
-    else localStorage.setItem("oficina-agentes", JSON.stringify(data));
-  }catch(e){}
+    else if(!db) localStorage.setItem("oficina-agentes", JSON.stringify(data));
+  }catch(e){ console.warn("No se pudo guardar la oficina", e); }
   saving = false;
   if(pending){ pending = false; save(); }
 }
